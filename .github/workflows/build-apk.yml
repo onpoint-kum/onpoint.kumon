@@ -21,7 +21,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -35,15 +34,13 @@ jobs:
       - name: Build web directory for Capacitor
         run: npm run build
 
-      - name: Add Android platform and Sync
-        run: |
-          npx cap add android
-          if [ -f "google-services.json" ]; then
-            cp google-services.json android/app/google-services.json
-          fi
-          npx cap sync android
+      - name: Add Android platform
+        run: npx cap add android
         env:
           CI: true
+
+      - name: Prepare Android (Google Services & Signing config)
+        run: node scripts/prepare-android.js
 
       - name: Generate Release Keystore
         run: |
@@ -58,31 +55,8 @@ jobs:
             -dname "CN=Kumon Onpoint, OU=Educacao, O=Kumon, L=Sao Paulo, ST=SP, C=BR"
           echo "✅ Keystore de release gerada com sucesso!"
 
-      - name: Inject Signing Config in build.gradle
-        run: |
-          node -e "
-            const fs = require('fs');
-            const gradlePath = 'android/app/build.gradle';
-            let content = fs.readFileSync(gradlePath, 'utf8');
-
-            const signingBlock = \`
-                release {
-                    storeFile file('release.keystore')
-                    storePassword 'kumon2026'
-                    keyAlias 'onpoint'
-                    keyPassword 'kumon2026'
-                }
-            \`;
-
-            // Insere o signingConfig release
-            content = content.replace(/signingConfigs\s*\{/, 'signingConfigs {' + signingBlock);
-
-            // Vincula o signingConfig ao buildTypes.release
-            content = content.replace(/buildTypes\s*\{\s*release\s*\{/, 'buildTypes {\n        release {\n            signingConfig signingConfigs.release\n');
-
-            fs.writeFileSync(gradlePath, content, 'utf8');
-            console.log('✅ Assinatura automática injetada no Gradle!');
-          "
+      - name: Sync Capacitor Android
+        run: npx cap sync android
 
       - name: Make gradlew executable
         working-directory: android
@@ -135,7 +109,6 @@ jobs:
 
             **Versão:** `${{ steps.read_version.outputs.version }}`
             **Build:** #${{ github.run_number }}
-            **Data:** $(date '+%d/%m/%Y %H:%M')
             **Commit:** `${{ github.sha }}`
 
             ### 📲 Como Instalar no Celular Android:
