@@ -1271,15 +1271,38 @@ body {
   box-shadow: 1px 1px 0px var(--kumon-border);
 }
 
+/* Utilitário para grids de formulário responsivos */
+.form-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .form-grid-2col {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+}
+
 /* ==========================================================================
-   OTIMIZAÇÕES EXCLUSIVAS PARA MOBILE & SMARTPHONES (< 720px)
+   OTIMIZAÇÕES EXCLUSIVAS PARA MOBILE & SMARTPHONES (APP-LIKE UX)
    ========================================================================== */
-@media (max-width: 720px) {
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
   body {
-    padding-bottom: 20px;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px)) !important;
   }
 
   /* Cabeçalho ultra compacto */
+  .main-header {
+    border-bottom-width: 2.5px;
+  }
+
   .header-inner {
     padding: 8px 12px;
     gap: 8px;
@@ -1287,17 +1310,22 @@ body {
 
   .logo-img-main {
     height: 36px;
-    max-width: 150px;
+    max-width: 140px;
+  }
+
+  .header-right {
+    gap: 6px;
   }
 
   .teacher-greeting-pill {
     padding: 4px 8px;
     font-size: 0.8rem;
     gap: 6px;
+    border-radius: 10px;
   }
 
   .teacher-greeting-text {
-    max-width: 95px;
+    max-width: 90px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1310,51 +1338,121 @@ body {
     font-size: 0.85rem;
   }
 
-  /* Barra de navegação em abas tipo App Mobile */
+  /* Barra de Navegação Inferior Nativa (Bottom App Bar) */
   .nav-container {
-    position: sticky;
-    top: 52px;
-    z-index: 90;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto !important;
+    width: 100vw;
+    background: #FFFFFF;
+    border-top: var(--border-thick);
+    border-bottom: none;
+    z-index: 1000;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 6px));
+    box-shadow: 0 -3px 12px rgba(20, 34, 50, 0.12);
   }
 
   .nav-tabs {
-    padding: 6px 10px;
-    gap: 6px;
+    display: flex;
+    justify-content: space-around;
+    padding: 0;
+    margin: 0 auto;
+    max-width: 100%;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .nav-btn {
-    font-size: 0.82rem;
-    padding: 6px 12px;
-    border-radius: 12px;
-    border-width: 2px;
+    flex: 1;
+    min-width: 50px;
+    padding: 5px 2px;
+    font-size: 0.68rem;
+    flex-direction: column;
+    gap: 2px;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    border-radius: 10px;
+    text-align: center;
+    position: relative;
+  }
+
+  .nav-btn span:first-child {
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  .nav-btn.active {
+    background: var(--kumon-yellow-soft);
+    color: var(--kumon-navy);
+    border: 2px solid var(--kumon-border);
+    box-shadow: 2px 2px 0px var(--kumon-border);
+  }
+
+  .nav-counter {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 0.62rem;
+    padding: 0 4px;
+    border-radius: 99px;
   }
 
   /* Cards e Conteúdo */
   .main-content {
-    padding: 12px 8px 40px;
+    padding: 12px 10px calc(24px + env(safe-area-inset-bottom, 12px));
+    width: 100%;
+    max-width: 100%;
   }
 
   .neo-card {
-    padding: 14px 10px;
-    border-radius: 16px;
+    padding: 16px 12px;
+    border-radius: 18px;
     border-width: 3px;
     box-shadow: 3px 3px 0px var(--kumon-border);
+    width: 100%;
+    max-width: 100%;
   }
 
   .neo-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
     margin-bottom: 14px;
     padding-bottom: 10px;
   }
 
+  .neo-card-header > div:last-child {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .neo-card-header > div:last-child .btn-neo {
+    width: 100%;
+  }
+
   .neo-title {
-    font-size: 1.15rem;
+    font-size: 1.2rem;
   }
 
   .btn-neo {
-    font-size: 0.88rem;
+    min-height: 44px;
+    font-size: 0.9rem;
     padding: 8px 14px;
-    min-height: 42px;
+  }
+
+  /* Previne zoom chato do Safari em inputs */
+  input, select, textarea {
+    font-size: 16px !important;
   }
 
   /* Totem de Ponto no Celular */
@@ -1364,18 +1462,22 @@ body {
   }
 
   .camera-viewport {
+    width: 100%;
+    max-width: 100%;
     min-height: 220px;
     max-height: 280px;
     border-radius: 16px;
   }
 
   .camera-guide-frame {
-    width: 170px;
-    height: 170px;
+    width: 160px;
+    height: 160px;
   }
 
   .manual-id-section {
     padding: 12px 10px;
+    width: 100%;
+    max-width: 100%;
   }
 
   .manual-form {
@@ -1388,14 +1490,23 @@ body {
   }
 
   /* Carteirinha no Celular */
+  .card-preview-layout {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+
   .kumon-id-card-wrap {
     display: flex;
     justify-content: center;
+    width: 100%;
   }
 
   .kumon-id-card {
-    max-width: 300px;
+    width: 100%;
+    max-width: 320px;
     border-radius: 18px;
+    border-width: 3px;
+    box-shadow: 4px 4px 0px var(--kumon-border);
   }
 
   .card-top-bar {
@@ -1403,8 +1514,8 @@ body {
   }
 
   .card-logo-img-main {
-    height: 30px;
-    max-width: 140px;
+    height: 32px;
+    max-width: 150px;
   }
 
   .card-body-content {
@@ -1430,27 +1541,52 @@ body {
     height: 130px !important;
   }
 
+  /* Grids responsivos */
+  .subjects-grid, .live-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
   /* Modais em tela cheia no mobile */
+  .neo-modal-overlay {
+    padding: 10px;
+  }
+
   .neo-modal {
     padding: 18px 14px;
     border-radius: 20px;
     max-height: 94vh;
+    width: 100%;
   }
 
   /* PIN Pad no celular */
+  .pin-pad-container {
+    margin: 12px 0;
+  }
+
   .pin-keypad {
-    max-width: 240px;
+    max-width: 250px;
     gap: 8px;
   }
 
   .pin-key {
-    font-size: 1.25rem;
-    padding: 10px;
+    font-size: 1.3rem;
+    padding: 12px;
+    min-height: 48px;
   }
 
-  /* Tabelas */
+  /* Tabelas com rolagem suave no toque */
   .table-responsive {
+    border-radius: 14px;
+    border: var(--border-thick);
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    margin-top: 12px;
+  }
+
+  .neo-table {
+    border: none;
+    min-width: 520px;
   }
 
   .neo-table th, .neo-table td {
