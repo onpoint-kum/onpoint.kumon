@@ -1,0 +1,1488 @@
+/* ==========================================================================
+   KUMON ONPOINT - SISTEMA DE PONTO & CARTEIRINHA DIGITAL
+   Estilo: Neo-Brutalist Pop Moderno (Inspirado no Elgaly Express com Identidade Kumon)
+   ========================================================================== */
+
+:root {
+  /* Paleta Oficial Kumon + Neo-Pop */
+  --kumon-blue: #0099D8;
+  --kumon-blue-dark: #0077A9;
+  --kumon-navy: #0B2545;
+  --kumon-soft-bg: #F0F7FB;
+  --kumon-card-bg: #FFFFFF;
+  --kumon-border: #142232;
+  --kumon-yellow: #FFD13B;
+  --kumon-yellow-soft: #FFF7D6;
+  --kumon-green: #10B981;
+  --kumon-green-soft: #DCFCE7;
+  --kumon-orange: #F97316;
+  --kumon-orange-soft: #FFEDD5;
+  --kumon-purple: #8B5CF6;
+  --kumon-purple-soft: #EDE9FE;
+  --kumon-pink: #EC4899;
+  --kumon-pink-soft: #FCE7F3;
+  --kumon-red: #EF4444;
+  --kumon-gray-light: #F3F4F6;
+  --kumon-gray-muted: #6B7280;
+
+  /* Efeitos e Sombras Neo-Brutalistas */
+  --border-thick: 3px solid var(--kumon-border);
+  --border-super: 4px solid var(--kumon-border);
+  --border-thin: 2px solid var(--kumon-border);
+  --shadow-sm: 3px 3px 0px var(--kumon-border);
+  --shadow-md: 5px 5px 0px var(--kumon-border);
+  --shadow-lg: 8px 8px 0px var(--kumon-border);
+  --shadow-blue: 5px 5px 0px var(--kumon-blue-dark);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+
+  /* Fontes */
+  --font-heading: 'Fredoka', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--kumon-soft-bg);
+  color: var(--kumon-navy);
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-image: radial-gradient(rgba(0, 153, 216, 0.18) 1.5px, transparent 1.5px);
+  background-size: 18px 18px;
+}
+
+/* ==========================================================================
+   TELA SPLASH OFICIAL KUMON ONPOINT (COM ANIMAÇÃO & SOM DE BOAS-VINDAS)
+   ========================================================================== */
+.kumon-splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--kumon-soft-bg);
+  background-image: radial-gradient(rgba(0, 153, 216, 0.25) 2px, transparent 2px);
+  background-size: 20px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.5s;
+}
+
+.kumon-splash-screen.fade-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.kumon-splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px;
+  animation: splashPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes splashPop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.kumon-splash-logo {
+  max-width: 360px;
+  width: 85vw;
+  height: auto;
+  object-fit: contain;
+  filter: none;
+  margin-bottom: 16px;
+}
+
+.kumon-splash-sub-badge {
+  background: var(--kumon-yellow);
+  color: var(--kumon-border);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 0.82rem;
+  padding: 5px 16px;
+  border-radius: var(--radius-full);
+  border: var(--border-thick);
+  box-shadow: var(--shadow-sm);
+  letter-spacing: 0.5px;
+  margin-bottom: 24px;
+}
+
+.kumon-splash-bar {
+  width: 220px;
+  height: 10px;
+  background: #FFFFFF;
+  border: var(--border-thin);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  box-shadow: 2px 2px 0px var(--kumon-border);
+}
+
+.kumon-splash-progress {
+  width: 0%;
+  height: 100%;
+  background: var(--kumon-blue);
+  animation: loadProgress 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes loadProgress {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 100%; }
+}
+
+/* Logos customizados */
+.logo-img-main {
+  height: 48px;
+  max-width: 230px;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.logo-img-main:hover {
+  transform: rotate(-2deg) scale(1.05);
+}
+
+.auth-logo-main {
+  max-width: 300px;
+  width: 85%;
+  height: auto;
+  object-fit: contain;
+  margin-bottom: 12px;
+}
+
+.card-logo-img-main {
+  height: 38px;
+  max-width: 180px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+/* ==========================================================================
+   TELA DE LOGIN (QUANDO NÃO AUTENTICADO)
+   ========================================================================== */
+.auth-hero-container {
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: #FFFFFF;
+  border: var(--border-super);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 36px 28px;
+  text-align: center;
+  position: relative;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.auth-logo {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 16px;
+}
+
+.auth-title {
+  font-family: var(--font-heading);
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--kumon-navy);
+  margin-bottom: 4px;
+}
+
+.auth-sub {
+  font-size: 0.92rem;
+  color: var(--kumon-gray-muted);
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.btn-google-login {
+  width: 100%;
+  background: #FFFFFF;
+  color: var(--kumon-navy);
+  border: var(--border-thick);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: all 0.15s ease;
+}
+
+.btn-google-login:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  background: #F8FAFC;
+}
+
+.btn-google-login:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px var(--kumon-border);
+}
+
+.btn-google-login svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ==========================================================================
+   CABEÇALHO & IDENTIDADE
+   ========================================================================== */
+.main-header {
+  background: #FFFFFF;
+  border-bottom: var(--border-thick);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 0 rgba(20, 34, 50, 0.08);
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+}
+
+.logo-img {
+  height: 44px;
+  width: auto;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.logo-img:hover {
+  transform: rotate(-2deg) scale(1.05);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--kumon-navy);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-badge {
+  background: var(--kumon-yellow);
+  color: var(--kumon-border);
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: var(--border-thin);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.brand-sub {
+  font-size: 0.78rem;
+  color: var(--kumon-gray-muted);
+  font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Saudação personalizada do Professor: "Oi, Tia Isa! 👋" */
+.teacher-greeting-pill {
+  background: var(--kumon-yellow-soft);
+  border: var(--border-thin);
+  border-radius: var(--radius-md);
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease;
+}
+
+.teacher-greeting-pill:hover {
+  transform: translateY(-2px);
+}
+
+.teacher-avatar-mini {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--kumon-border);
+  object-fit: cover;
+  background: var(--kumon-yellow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+}
+
+.teacher-greeting-text {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #713F12;
+}
+
+/* ==========================================================================
+   NAVEGAÇÃO PRINCIPAL (TABS NEO-POP)
+   ========================================================================== */
+.nav-container {
+  background: #FFFFFF;
+  border-bottom: var(--border-thick);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav-container::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-tabs {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 8px 18px;
+}
+
+.nav-btn {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  background: #FFFFFF;
+  color: var(--kumon-navy);
+  border: var(--border-thick);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.nav-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  background: var(--kumon-soft-bg);
+}
+
+.nav-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px var(--kumon-border);
+}
+
+.nav-btn.active {
+  background: var(--kumon-blue);
+  color: #FFFFFF;
+  box-shadow: var(--shadow-md);
+}
+
+.nav-counter {
+  background: var(--kumon-yellow);
+  color: var(--kumon-border);
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--kumon-border);
+}
+
+/* ==========================================================================
+   CONTEÚDO PRINCIPAL
+   ========================================================================== */
+.main-content {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 18px 48px;
+}
+
+.tab-pane {
+  display: none;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   ESTILOS GERAIS DE CARDS & BOTÕES
+   ========================================================================== */
+.neo-card {
+  background: var(--kumon-card-bg);
+  border: var(--border-super);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 24px;
+  position: relative;
+}
+
+.neo-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px dashed rgba(20, 34, 50, 0.2);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.neo-title {
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--kumon-navy);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.neo-subtitle {
+  font-size: 0.9rem;
+  color: var(--kumon-gray-muted);
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.btn-neo {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: var(--border-thick);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.btn-neo:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-neo:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px var(--kumon-border);
+}
+
+.btn-primary { background: var(--kumon-blue); color: #fff; }
+.btn-primary:hover { background: var(--kumon-blue-dark); }
+.btn-success { background: var(--kumon-green); color: #fff; }
+.btn-warning { background: var(--kumon-yellow); color: var(--kumon-border); }
+.btn-danger { background: var(--kumon-red); color: #fff; }
+.btn-outline { background: #fff; color: var(--kumon-navy); }
+
+/* ==========================================================================
+   ABA 1: TOTEM DE PONTO / SCANNER
+   ========================================================================== */
+.totem-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .totem-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.scanner-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.camera-viewport {
+  width: 100%;
+  max-width: 480px;
+  min-height: 320px;
+  background: #0B2545;
+  border: var(--border-super);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#reader {
+  width: 100% !important;
+  border: none !important;
+}
+
+#reader video {
+  border-radius: calc(var(--radius-lg) - 4px);
+  object-fit: cover !important;
+}
+
+.camera-guide-frame {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border: 3px dashed var(--kumon-yellow);
+  border-radius: 18px;
+  pointer-events: none;
+  box-shadow: 0 0 0 4000px rgba(11, 37, 69, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-laser {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: #FFD13B;
+  box-shadow: 0 0 10px #FFD13B, 0 0 20px #FFD13B;
+  animation: laserScan 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes laserScan {
+  0% { top: 6px; }
+  100% { top: calc(100% - 9px); }
+}
+
+.scanner-controls {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Teclado rápido / Digitação manual */
+.manual-id-section {
+  margin-top: 24px;
+  width: 100%;
+  max-width: 480px;
+  background: var(--kumon-yellow-soft);
+  border: var(--border-thick);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.manual-form {
+  display: flex;
+  gap: 10px;
+}
+
+.neo-input {
+  flex: 1;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 10px 14px;
+  border: var(--border-thick);
+  border-radius: var(--radius-sm);
+  background: #FFFFFF;
+  color: var(--kumon-navy);
+  outline: none;
+}
+
+.neo-input:focus {
+  border-color: var(--kumon-blue);
+  box-shadow: 0 0 0 3px rgba(0, 153, 216, 0.25);
+}
+
+/* Quick student demo buttons */
+.quick-test-bar {
+  margin-top: 14px;
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border: var(--border-thin);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 0.8rem;
+}
+
+.quick-test-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.chip-student {
+  background: var(--kumon-soft-bg);
+  border: 1.5px solid var(--kumon-border);
+  border-radius: var(--radius-full);
+  padding: 3px 9px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.chip-student:hover {
+  background: var(--kumon-yellow);
+}
+
+/* FEEDBACK CARD DE REGISTRO */
+.feedback-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feedback-card {
+  background: #fff;
+  border: var(--border-super);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.feedback-card.empty-state {
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 380px;
+  color: var(--kumon-gray-muted);
+}
+
+.feedback-card.success-in {
+  background: linear-gradient(180deg, #F0FDF4 0%, #DCFCE7 100%);
+  border-color: #065F46;
+}
+
+.feedback-card.success-out {
+  background: linear-gradient(180deg, #FFF7ED 0%, #FFEDD5 100%);
+  border-color: #9A3412;
+}
+
+.student-avatar-big {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: var(--border-thick);
+  background: var(--kumon-yellow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  margin: 0 auto 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.feedback-status-badge {
+  display: inline-block;
+  padding: 4px 16px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  border: var(--border-thin);
+}
+
+.status-in {
+  background: var(--kumon-green);
+  color: #fff;
+}
+
+.status-out {
+  background: var(--kumon-orange);
+  color: #fff;
+}
+
+.feedback-student-name {
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--kumon-navy);
+}
+
+.feedback-student-id {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--kumon-blue-dark);
+  margin-bottom: 12px;
+}
+
+.feedback-subjects {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.subject-badge {
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--kumon-border);
+  box-shadow: 1px 1px 0px var(--kumon-border);
+}
+
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 3px 0;
+}
+
+.time-duration-highlight {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #CBD5E1;
+  font-weight: 800;
+  color: var(--kumon-orange);
+  font-size: 1.1rem;
+}
+
+.motivational-quote {
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--kumon-navy);
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: var(--border-thin);
+}
+
+/* ==========================================================================
+   ABA 2: CARTEIRINHA DIGITAL DO ALUNO (ESTILO CRACÁ ELGALY / KUMON)
+   ========================================================================== */
+.card-preview-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .card-preview-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kumon-id-card-wrap {
+  perspective: 1000px;
+}
+
+.kumon-id-card {
+  width: 100%;
+  max-width: 340px;
+  background: #FFFFFF;
+  border: var(--border-super);
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.kumon-id-card:hover {
+  transform: translateY(-4px);
+}
+
+.card-top-bar {
+  background: var(--kumon-blue);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: var(--border-thick);
+}
+
+.card-logo-img {
+  height: 28px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.card-unit-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.card-body-content {
+  padding: 20px;
+  text-align: center;
+}
+
+.card-avatar-wrap {
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  border: var(--border-thick);
+  background: var(--kumon-yellow-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.6rem;
+  margin: 0 auto 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-student-name {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--kumon-navy);
+}
+
+.card-student-id-badge {
+  display: inline-block;
+  background: var(--kumon-soft-bg);
+  border: var(--border-thin);
+  border-radius: var(--radius-full);
+  padding: 3px 12px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--kumon-blue-dark);
+  margin: 6px 0 12px;
+}
+
+.card-qr-box {
+  background: #fff;
+  border: var(--border-thick);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 12px;
+}
+
+.card-qr-box canvas {
+  display: none !important;
+}
+
+.card-qr-box img {
+  display: block !important;
+  width: 140px !important;
+  height: 140px !important;
+  margin: 0 auto !important;
+}
+
+.card-footer-strip {
+  background: var(--kumon-yellow);
+  border-top: var(--border-thick);
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--kumon-border);
+}
+
+/* ==========================================================================
+   ABA: MATÉRIAS DO KUMON
+   ========================================================================== */
+.subjects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.subject-item-card {
+  background: #fff;
+  border: var(--border-thick);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: all 0.15s ease;
+}
+
+.subject-item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.subject-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.subject-color-tag {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--kumon-border);
+  flex-shrink: 0;
+}
+
+.subject-item-title {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--kumon-navy);
+}
+
+.subject-item-count {
+  font-size: 0.78rem;
+  color: var(--kumon-gray-muted);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   ABA: ALUNOS PRESENTES AO VIVO
+   ========================================================================== */
+.live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.live-card {
+  background: #fff;
+  border: var(--border-thick);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  transition: transform 0.15s ease;
+}
+
+.live-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.live-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.live-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--kumon-border);
+  background: var(--kumon-yellow-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.live-info {
+  flex: 1;
+}
+
+.live-name {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--kumon-navy);
+}
+
+.live-timer {
+  font-size: 0.85rem;
+  color: var(--kumon-green);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ==========================================================================
+   TABELAS & LISTAGEM
+   ========================================================================== */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+.neo-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: var(--border-thick);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #fff;
+}
+
+.neo-table th {
+  background: var(--kumon-soft-bg);
+  border-bottom: var(--border-thick);
+  padding: 12px 14px;
+  font-family: var(--font-heading);
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-align: left;
+  color: var(--kumon-navy);
+}
+
+.neo-table td {
+  padding: 12px 14px;
+  border-bottom: 1.5px solid #E2E8F0;
+  font-size: 0.88rem;
+  vertical-align: middle;
+}
+
+.neo-table tr:last-child td {
+  border-bottom: none;
+}
+
+.neo-table tr:hover td {
+  background: #F8FAFC;
+}
+
+/* ==========================================================================
+   MODAIS NEO-POP
+   ========================================================================== */
+.neo-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(11, 37, 69, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.neo-modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.neo-modal {
+  background: #fff;
+  border: var(--border-super);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  transform: scale(0.95);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.neo-modal-overlay.active .neo-modal {
+  transform: scale(1);
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--kumon-navy);
+  margin-bottom: 6px;
+}
+
+/* ==========================================================================
+   RODAPÉ
+   ========================================================================== */
+.main-footer {
+  background: #fff;
+  border-top: var(--border-thick);
+  padding: 16px 18px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--kumon-gray-muted);
+}
+
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ==========================================================================
+   TELA DE PIN DE SEGURANÇA (4 DÍGITOS)
+   ========================================================================== */
+.pin-pad-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.pin-display-dots {
+  display: flex;
+  gap: 14px;
+}
+
+.pin-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2.5px solid var(--kumon-border);
+  background: #FFFFFF;
+  transition: all 0.15s ease;
+  box-shadow: 2px 2px 0px var(--kumon-border);
+}
+
+.pin-dot.filled {
+  background: var(--kumon-blue);
+  transform: scale(1.1);
+}
+
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 260px;
+  width: 100%;
+}
+
+.pin-key {
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  font-weight: 800;
+  padding: 12px;
+  border: var(--border-thick);
+  border-radius: var(--radius-md);
+  background: #FFFFFF;
+  color: var(--kumon-navy);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.pin-key:hover {
+  background: var(--kumon-yellow-soft);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.pin-key:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px var(--kumon-border);
+}
+
+/* ==========================================================================
+   OTIMIZAÇÕES EXCLUSIVAS PARA MOBILE & SMARTPHONES (< 720px)
+   ========================================================================== */
+@media (max-width: 720px) {
+  body {
+    padding-bottom: 20px;
+  }
+
+  /* Cabeçalho ultra compacto */
+  .header-inner {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .logo-img-main {
+    height: 36px;
+    max-width: 150px;
+  }
+
+  .teacher-greeting-pill {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    gap: 6px;
+  }
+
+  .teacher-greeting-text {
+    max-width: 95px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.82rem;
+  }
+
+  .teacher-avatar-mini {
+    width: 24px;
+    height: 24px;
+    font-size: 0.85rem;
+  }
+
+  /* Barra de navegação em abas tipo App Mobile */
+  .nav-container {
+    position: sticky;
+    top: 52px;
+    z-index: 90;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+  }
+
+  .nav-tabs {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
+  .nav-btn {
+    font-size: 0.82rem;
+    padding: 6px 12px;
+    border-radius: 12px;
+    border-width: 2px;
+  }
+
+  /* Cards e Conteúdo */
+  .main-content {
+    padding: 12px 8px 40px;
+  }
+
+  .neo-card {
+    padding: 14px 10px;
+    border-radius: 16px;
+    border-width: 3px;
+    box-shadow: 3px 3px 0px var(--kumon-border);
+  }
+
+  .neo-card-header {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+  }
+
+  .neo-title {
+    font-size: 1.15rem;
+  }
+
+  .btn-neo {
+    font-size: 0.88rem;
+    padding: 8px 14px;
+    min-height: 42px;
+  }
+
+  /* Totem de Ponto no Celular */
+  .totem-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .camera-viewport {
+    min-height: 220px;
+    max-height: 280px;
+    border-radius: 16px;
+  }
+
+  .camera-guide-frame {
+    width: 170px;
+    height: 170px;
+  }
+
+  .manual-id-section {
+    padding: 12px 10px;
+  }
+
+  .manual-form {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .manual-form .btn-neo {
+    width: 100%;
+  }
+
+  /* Carteirinha no Celular */
+  .kumon-id-card-wrap {
+    display: flex;
+    justify-content: center;
+  }
+
+  .kumon-id-card {
+    max-width: 300px;
+    border-radius: 18px;
+  }
+
+  .card-top-bar {
+    padding: 10px 14px;
+  }
+
+  .card-logo-img-main {
+    height: 30px;
+    max-width: 140px;
+  }
+
+  .card-body-content {
+    padding: 14px 10px;
+  }
+
+  .card-avatar-wrap {
+    width: 72px;
+    height: 72px;
+    font-size: 2.2rem;
+  }
+
+  .card-student-name {
+    font-size: 1.2rem;
+  }
+
+  .card-qr-box {
+    padding: 10px;
+  }
+
+  .card-qr-box img {
+    width: 130px !important;
+    height: 130px !important;
+  }
+
+  /* Modais em tela cheia no mobile */
+  .neo-modal {
+    padding: 18px 14px;
+    border-radius: 20px;
+    max-height: 94vh;
+  }
+
+  /* PIN Pad no celular */
+  .pin-keypad {
+    max-width: 240px;
+    gap: 8px;
+  }
+
+  .pin-key {
+    font-size: 1.25rem;
+    padding: 10px;
+  }
+
+  /* Tabelas */
+  .table-responsive {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .neo-table th, .neo-table td {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+}
+
+/* ==========================================================================
+   IMPRESSÃO
+   ========================================================================== */
+@media print {
+  body {
+    background: #fff !important;
+    padding: 0 !important;
+  }
+  .main-header, .nav-container, .main-footer, .scanner-controls, .btn-neo, .no-print, .neo-modal-overlay {
+    display: none !important;
+  }
+  .main-content {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  .kumon-id-card {
+    box-shadow: none !important;
+    border: 2px solid #000 !important;
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+  }
+  .print-cards-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+  }
+}

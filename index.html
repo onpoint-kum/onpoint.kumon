@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kumon Onpoint • Sistema de Ponto & Carteirinha Digital</title>
+  
+  <!-- Fontes Oficiais: Fredoka e Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- SDKs do Firebase (Compatibilidade Direta via CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <!-- Estilos Neo-Pop Kumon -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Favicon com o logo oficial -->
+  <link rel="icon" type="image/png" href="assets/onpoint.png">
+</head>
+<body>
+
+  <!-- ==========================================================================
+       TELA SPLASH OFICIAL KUMON ONPOINT (COM ANIMAÇÃO & SOM DE BOAS-VINDAS)
+       ========================================================================== -->
+  <div class="kumon-splash-screen" id="kumonSplashScreen">
+    <div class="kumon-splash-content">
+      <img src="assets/onpoint.png" alt="Kumon Onpoint" class="kumon-splash-logo">
+      <div class="kumon-splash-sub-badge">REDE OFICIAL • PONTO & CARTEIRINHA DIGITAL</div>
+      <div class="kumon-splash-bar">
+        <div class="kumon-splash-progress"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       TELA DE LOGIN (QUANDO NÃO AUTENTICADO)
+       ========================================================================== -->
+  <div id="authHeroSection" class="auth-hero-container">
+    <div class="auth-card">
+      <img src="assets/onpoint.png" alt="Kumon Onpoint" class="auth-logo-main">
+      <p class="auth-sub" style="margin-top: 6px;">Sistema de Ponto, Carteirinha Digital & Frequência</p>
+      
+      <div style="background: var(--kumon-yellow-soft); border: var(--border-thick); border-radius: var(--radius-md); padding: 14px; margin-bottom: 24px; text-align: left; font-size: 0.88rem; color: #713F12;">
+        👋 <strong>Área dos Professores & Orientadores:</strong><br>
+        Acesse com sua conta Google para gerenciar os alunos, matérias e registrar o ponto via QR Code.
+      </div>
+
+      <button type="button" class="btn-google-login" id="btnGoogleLogin">
+        <svg viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span>Entrar com o Google</span>
+      </button>
+
+      <div style="margin-top: 20px; font-size: 0.76rem; color: var(--kumon-gray-muted);">
+        Conexão direta e segura com o Firebase Firestore
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       APLICAÇÃO PRINCIPAL (EXIBIDA QUANDO AUTENTICADO)
+       ========================================================================== -->
+  <div id="appContainer" style="display: none; flex-direction: column; min-height: 100vh;">
+
+    <!-- CABEÇALHO PRINCIPAL -->
+    <header class="main-header">
+      <div class="header-inner">
+        <div class="logo-section">
+          <img src="assets/onpoint.png" alt="Kumon Onpoint" class="logo-img-main">
+        </div>
+        
+        <div class="header-right">
+          <!-- Saudação fofa personalizada: "Oi, Tia Isa! 👋" -->
+          <div class="teacher-greeting-pill" id="btnTeacherProfilePill" title="Clique para editar seu perfil de professor(a)">
+            <div class="teacher-avatar-mini" id="headerTeacherAvatar">👩‍🏫</div>
+            <span class="teacher-greeting-text" id="headerTeacherGreeting">Oi, Tia Isa! 👋</span>
+          </div>
+
+          <button class="btn-neo btn-outline" id="btnAudioToggle" title="Ativar/Desativar Efeitos Sonoros">
+            <span id="audioIcon">🔊</span>
+          </button>
+
+          <button class="btn-neo btn-outline" id="btnLogout" title="Sair da Conta">
+            <span>🚪</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- NAVEGAÇÃO EM ABAS NEO-POP -->
+    <nav class="nav-container">
+      <div class="nav-tabs">
+        <button class="nav-btn active" data-tab="tab-totem">
+          <span>📷</span> Totem de Ponto
+        </button>
+        <button class="nav-btn" data-tab="tab-carteirinha">
+          <span>🪪</span> Carteirinha Mobile
+        </button>
+        <button class="nav-btn" data-tab="tab-presentes">
+          <span>🟢</span> Presentes Agora
+          <span class="nav-counter" id="badgePresentes">0</span>
+        </button>
+        <button class="nav-btn" data-tab="tab-alunos">
+          <span>👥</span> Alunos
+          <span class="nav-counter" id="badgeTotalAlunos">0</span>
+        </button>
+        <button class="nav-btn" data-tab="tab-materias">
+          <span>📚</span> Matérias
+          <span class="nav-counter" id="badgeTotalMaterias">0</span>
+        </button>
+        <button class="nav-btn" data-tab="tab-historico">
+          <span>📊</span> Histórico & Relatórios
+        </button>
+      </div>
+    </nav>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="main-content">
+
+      <!-- ------------------------------------------------------------------------
+           ABA 1: TOTEM DE PONTO (SCANNER DE QR CODE & ENTRADA MANUAL)
+           ------------------------------------------------------------------------ -->
+      <section class="tab-pane active" id="tab-totem">
+        <div class="totem-layout">
+          
+          <!-- Coluna da Esquerda: Câmera e Entrada de Código -->
+          <div class="neo-card scanner-box">
+            <div class="neo-card-header" style="width: 100%;">
+              <div>
+                <h2 class="neo-title"><span>📷</span> Totem de Registro</h2>
+                <p class="neo-subtitle">Aponte o QR Code da carteirinha do aluno ou digite o ID</p>
+              </div>
+              <span class="brand-badge" style="background:#DCFCE7; color:#166534;">AUTO-DETECT</span>
+            </div>
+
+            <!-- Câmera com overlay de mira -->
+            <div class="camera-viewport" id="cameraViewport">
+              <div id="reader"></div>
+              <div class="camera-guide-frame" id="cameraGuide">
+                <div class="scan-laser"></div>
+              </div>
+            </div>
+
+            <!-- Controles do Scanner -->
+            <div class="scanner-controls">
+              <button class="btn-neo btn-primary" id="btnToggleCamera">
+                <span id="cameraBtnIcon">📹</span> <span id="cameraBtnText">Iniciar Câmera</span>
+              </button>
+              <button class="btn-neo btn-outline" id="btnSwitchCamera" style="display: none;">
+                🔄 Trocar Câmera
+              </button>
+            </div>
+
+            <!-- Digitação Manual por ID -->
+            <div class="manual-id-section">
+              <label class="form-label" for="inputManualId">Ou digite o KumonID do Aluno:</label>
+              <form class="manual-form" id="formManualCheck">
+                <input type="text" id="inputManualId" class="neo-input" placeholder="Ex: KUM-0001" autocomplete="off">
+                <button type="submit" class="btn-neo btn-warning">Bater Ponto</button>
+              </form>
+            </div>
+
+            <!-- Atalhos rápidos para teste / simulação -->
+            <div class="quick-test-bar">
+              <strong>💡 Teste rápido (Clique em um aluno para simular leitura):</strong>
+              <div class="quick-test-chips" id="quickTestChips">
+                <!-- Preenchido via JavaScript -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Coluna da Direita: Card de Feedback em Tempo Real -->
+          <div class="feedback-container">
+            <div class="feedback-card empty-state" id="feedbackCard">
+              <div style="font-size: 3.5rem; margin-bottom: 12px;">👋</div>
+              <h3 style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--kumon-navy); margin-bottom: 6px;">Pronto para registrar!</h3>
+              <p style="font-size: 0.88rem; max-width: 240px; text-align: center;">
+                Aproxime o QR Code do aluno na câmera ou digite o KumonID.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------------------------
+           ABA 2: CARTEIRINHA DIGITAL MOBILE (ÁREA DO ALUNO / IMPRESSÃO)
+           ------------------------------------------------------------------------ -->
+      <section class="tab-pane" id="tab-carteirinha">
+        <div class="neo-card">
+          <div class="neo-card-header">
+            <div>
+              <h2 class="neo-title"><span>🪪</span> Carteirinha Digital Kumon Onpoint</h2>
+              <p class="neo-subtitle">Identificação com QR Code único para bater ponto no totem ou no mobile</p>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="btn-neo btn-primary" id="btnPrintCard">🖨️ Imprimir Carteirinha</button>
+              <button class="btn-neo btn-outline" id="btnPrintAllCards">📑 Imprimir Todas em Lote</button>
+            </div>
+          </div>
+
+          <div class="card-preview-layout">
+            
+            <!-- Lado Esquerdo: A Carteirinha em Formato Real -->
+            <div class="kumon-id-card-wrap">
+              <div class="kumon-id-card" id="studentIdCard">
+                <div class="card-top-bar">
+                  <img src="assets/onpoint.png" alt="Kumon Onpoint" class="card-logo-img-main">
+                </div>
+                <div class="card-body-content">
+                  <div class="card-avatar-wrap" id="cardAvatar">👦</div>
+                  <div class="card-student-name" id="cardStudentName">Nome do Aluno</div>
+                  <div class="card-student-id-badge" id="cardStudentId">ID: KUM-0001</div>
+                  
+                  <div class="feedback-subjects" id="cardSubjects">
+                    <span class="subject-badge" style="background:#93C5FD; color:#1E3A8A;">Matemática</span>
+                  </div>
+
+                  <div class="card-qr-box" id="cardQrContainer">
+                    <!-- Gerado via QRCode.js -->
+                  </div>
+
+                  <div style="font-size: 0.72rem; color: var(--kumon-gray-muted); font-weight: 700;">
+                    Aproxime este QR Code no Totem
+                  </div>
+                </div>
+
+                <div class="card-footer-strip">
+                  <span id="cardTeacherLabel">ORIENTAÇÃO: ISABELA MOLINA</span>
+                  <span>ANO 2026</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lado Direito: Seleção do Aluno & Detalhes -->
+            <div style="display: flex; flex-direction: column; gap: 18px;">
+              <div style="background: var(--kumon-soft-bg); border: var(--border-thick); border-radius: var(--radius-md); padding: 18px;">
+                <label class="form-label" for="selectCardStudent">Selecione o Aluno para visualizar a carteirinha:</label>
+                <select id="selectCardStudent" class="neo-input" style="width: 100%; margin-bottom: 14px;">
+                  <!-- Preenchido via JavaScript -->
+                </select>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
+                  <div style="background: #fff; padding: 12px; border-radius: var(--radius-sm); border: var(--border-thin);">
+                    <div style="font-size: 0.75rem; color: var(--kumon-gray-muted); font-weight: 700;">FREQUÊNCIA NO MÊS</div>
+                    <div style="font-size: 1.4rem; font-family: var(--font-heading); font-weight: 800; color: var(--kumon-blue-dark);" id="cardStatAttendances">
+                      0 Aulas
+                    </div>
+                  </div>
+                  <div style="background: #fff; padding: 12px; border-radius: var(--radius-sm); border: var(--border-thin);">
+                    <div style="font-size: 0.75rem; color: var(--kumon-gray-muted); font-weight: 700;">STATUS ATUAL</div>
+                    <div style="font-size: 1.05rem; font-family: var(--font-heading); font-weight: 800;" id="cardStatStatus">
+                      ⚪ Fora da Sala
+                    </div>
+                  </div>
+                </div>
+
+                <div style="margin-top: 16px; display: flex; gap: 10px;">
+                  <button class="btn-neo btn-success" id="btnSimulateCardCheckIn" style="flex: 1;">
+                    ⏱️ Bater Ponto deste Aluno
+                  </button>
+                </div>
+              </div>
+
+              <div style="background: #FFF7D6; border: var(--border-thick); border-radius: var(--radius-md); padding: 16px;">
+                <h4 style="font-family: var(--font-heading); margin-bottom: 6px; color: #713F12;">📱 Carteirinha no Celular:</h4>
+                <p style="font-size: 0.86rem; color: #713F12;">
+                  Os alunos e pais podem salvar esta página no celular. O QR Code fica sempre legível na tela para bater o ponto na recepção com facilidade!
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------------------------
+           ABA 3: ALUNOS PRESENTES AGORA (AO VIVO NO KUMON)
+           ------------------------------------------------------------------------ -->
+      <section class="tab-pane" id="tab-presentes">
+        <div class="neo-card">
+          <div class="neo-card-header">
+            <div>
+              <h2 class="neo-title"><span>🟢</span> Alunos em Sala de Estudos</h2>
+              <p class="neo-subtitle">Acompanhe quem está na unidade agora e o tempo decorrido de aula</p>
+            </div>
+            <button class="btn-neo btn-outline" id="btnRefreshLive">🔄 Atualizar</button>
+          </div>
+
+          <div id="emptyLiveState" style="text-align: center; padding: 48px 16px; color: var(--kumon-gray-muted); display: none;">
+            <div style="font-size: 3rem; margin-bottom: 8px;">🏫</div>
+            <h3 style="font-family: var(--font-heading); font-size: 1.2rem; color: var(--kumon-navy);">Nenhum aluno em sala no momento</h3>
+            <p style="font-size: 0.88rem;">Assim que um aluno registrar entrada no totem, seu card aparecerá aqui com o cronômetro ativo!</p>
+          </div>
+
+          <div class="live-grid" id="liveStudentsGrid">
+            <!-- Preenchido via JavaScript -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------------------------
+           ABA 4: GERENCIAMENTO DE ALUNOS (CADASTRO COM KUMONID AUTOMÁTICO)
+           ------------------------------------------------------------------------ -->
+      <section class="tab-pane" id="tab-alunos">
+        <div class="neo-card">
+          <div class="neo-card-header">
+            <div>
+              <h2 class="neo-title"><span>👥</span> Alunos Cadastrados</h2>
+              <p class="neo-subtitle">Cadastre os alunos, vincule suas matérias e gerencie seus KumonIDs</p>
+            </div>
+            <button class="btn-neo btn-primary" id="btnOpenNewStudentModal">➕ Cadastrar Novo Aluno</button>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <input type="text" id="filterStudentList" class="neo-input" placeholder="🔍 Buscar aluno por nome ou KumonID..." style="font-size: 0.95rem; padding: 10px 14px; width: 100%;">
+          </div>
+
+          <div class="table-responsive">
+            <table class="neo-table">
+              <thead>
+                <tr>
+                  <th>Avatar</th>
+                  <th>Nome Completo</th>
+                  <th>KumonID</th>
+                  <th>Disciplinas Vinculadas</th>
+                  <th>Responsável / Telefone</th>
+                  <th style="text-align: right;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="studentsTableBody">
+                <!-- Preenchido via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------------------------
+           ABA 5: GERENCIAMENTO DE MATÉRIAS (DISCIPLINAS DO KUMON)
+           ------------------------------------------------------------------------ -->
+      <section class="tab-pane" id="tab-materias">
+        <div class="neo-card">
+          <div class="neo-card-header">
+            <div>
+              <h2 class="neo-title"><span>📚</span> Matérias do Kumon</h2>
+              <p class="neo-subtitle">Adicione disciplinas ao sistema para vincular aos alunos matriculados</p>
+            </div>
+            <button class="btn-neo btn-primary" id="btnOpenNewSubjectModal">➕ Adicionar Nova Matéria</button>
+          </div>
+
+          <div class="subjects-grid" id="subjectsGrid">
+            <!-- Preenchido via JavaScript -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------------------------
+           ABA 6: HISTÓRICO & RELATÓRIOS
+           ------------------------------------------------------------------------ -->
+      <section class="tab-pane" id="tab-historico">
+        <div class="neo-card">
+          <div class="neo-card-header">
+            <div>
+              <h2 class="neo-title"><span>📊</span> Histórico de Frequência</h2>
+              <p class="neo-subtitle">Registro completo de entradas, saídas e tempo de permanência</p>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="btn-neo btn-success" id="btnExportCSV">📥 Exportar CSV (Excel)</button>
+              <button class="btn-neo btn-primary" id="btnPrintReport">🖨️ Imprimir Folha de Frequência</button>
+            </div>
+          </div>
+
+          <!-- Filtros Rápidos -->
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;">
+            <div style="flex: 1; min-width: 200px;">
+              <input type="text" id="filterSearchHistory" class="neo-input" placeholder="🔍 Buscar por nome ou ID..." style="font-size: 0.9rem; padding: 8px 12px;">
+            </div>
+            <select id="filterSubjectHistory" class="neo-input" style="font-size: 0.9rem; padding: 8px 12px; width: auto;">
+              <option value="all">Todas as Matérias</option>
+              <!-- Preenchido dinamicamente com as matérias cadastradas -->
+            </select>
+            <select id="filterPeriodHistory" class="neo-input" style="font-size: 0.9rem; padding: 8px 12px; width: auto;">
+              <option value="today">Hoje</option>
+              <option value="all">Todo o Histórico</option>
+            </select>
+          </div>
+
+          <div class="table-responsive">
+            <table class="neo-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Aluno</th>
+                  <th>KumonID</th>
+                  <th>Disciplinas</th>
+                  <th>Entrada</th>
+                  <th>Saída</th>
+                  <th>Permanência</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <!-- Preenchido via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- ==========================================================================
+       MODAL 1: PERFIL DO PROFESSOR (COM PREFIXO TIO / TIA E ABREVIAÇÃO FOFA)
+       ========================================================================== -->
+  <div class="neo-modal-overlay" id="teacherModalOverlay">
+    <div class="neo-modal">
+      <div class="neo-card-header" style="margin-bottom: 14px;">
+        <h3 class="neo-title"><span>👩‍🏫</span> Perfil do(a) Professor(a)</h3>
+        <button class="btn-neo btn-outline" id="btnCloseTeacherModal" style="padding: 4px 10px; font-size: 1.1rem;">✕</button>
+      </div>
+
+      <div style="background: var(--kumon-yellow-soft); border: var(--border-thick); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; font-size: 0.88rem; color: #713F12;">
+        ✨ <strong>Identificação Kumon:</strong><br>
+        Seu tratamento é gerado automaticamente (ex: Isabela Molina → <strong>Tia Isa</strong>).
+      </div>
+
+      <form id="formTeacherProfile">
+        <div class="form-group">
+          <label class="form-label" for="teacherFullName">Nome Completo *</label>
+          <input type="text" id="teacherFullName" class="neo-input" required placeholder="Ex: Isabela Molina" style="width: 100%;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label" for="teacherGender">Sexo *</label>
+            <select id="teacherGender" class="neo-input" style="width: 100%;" required>
+              <option value="Feminino">Feminino (Tia)</option>
+              <option value="Masculino">Masculino (Tio)</option>
+              <option value="Outro">Outro (Prof.)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="teacherAge">Idade</label>
+            <input type="number" id="teacherAge" class="neo-input" placeholder="Ex: 26" style="width: 100%;">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="teacherPhone">Telefone / WhatsApp</label>
+          <input type="text" id="teacherPhone" class="neo-input" placeholder="(11) 98765-4321" style="width: 100%;">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="teacherNickname">Como os alunos te chamam (Abreviação / Tratamento) *</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="teacherNickname" class="neo-input" required placeholder="Ex: Tia Isa" style="width: 100%;">
+            <button type="button" class="btn-neo btn-warning" id="btnAutoSuggestNickname" title="Gerar automaticamente com base no nome e sexo">
+              🪄 Auto
+            </button>
+          </div>
+          <span style="font-size: 0.78rem; color: var(--kumon-gray-muted);">
+            Exemplo: Isabela gera "Tia Isa", Gabriel gera "Tio Gabi".
+          </span>
+        </div>
+
+        <!-- Chave Secreta Master da Unidade -->
+        <div class="form-group" id="groupMasterKey">
+          <label class="form-label" for="teacherMasterKey">Chave Secreta de Acesso da Unidade *</label>
+          <input type="password" id="teacherMasterKey" class="neo-input" required placeholder="Digite a chave da unidade" style="width: 100%;">
+          <span style="font-size: 0.76rem; color: #B45309; font-weight: 600;">
+            🔒 Combinação obrigatória para autorizar o acesso de professores.
+          </span>
+        </div>
+
+        <!-- PIN de 4 dígitos -->
+        <div class="form-group">
+          <label class="form-label" for="teacherPinCode">Crie seu PIN de Segurança (4 Dígitos) *</label>
+          <input type="password" id="teacherPinCode" class="neo-input" maxlength="4" pattern="\d{4}" required placeholder="Ex: 1234" style="width: 100%; letter-spacing: 6px; font-size: 1.25rem; text-align: center; font-weight: 800;">
+          <span style="font-size: 0.76rem; color: var(--kumon-gray-muted);">
+            Guarde esse PIN: ele será solicitado toda vez que você abrir a página.
+          </span>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+          <button type="submit" class="btn-neo btn-success" id="btnSaveTeacher">Salvar Perfil</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL 2: ADICIONAR / EDITAR ALUNO (COM KUMONID AUTOMÁTICO)
+       ========================================================================== -->
+  <div class="neo-modal-overlay" id="studentModalOverlay">
+    <div class="neo-modal">
+      <div class="neo-card-header" style="margin-bottom: 14px;">
+        <h3 class="neo-title" id="modalStudentTitle"><span>➕</span> Cadastrar Aluno no Kumon</h3>
+        <button class="btn-neo btn-outline" id="btnCloseStudentModal" style="padding: 4px 10px; font-size: 1.1rem;">✕</button>
+      </div>
+
+      <form id="formStudent">
+        <input type="hidden" id="studentFormMode" value="create">
+        <input type="hidden" id="studentFormDocId" value="">
+
+        <!-- KumonID Gerado Automaticamente -->
+        <div style="background: var(--kumon-soft-bg); border: var(--border-thick); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 0.78rem; font-weight: 800; color: var(--kumon-gray-muted);">KUMON ID AUTOMÁTICO</div>
+            <div style="font-family: var(--font-heading); font-size: 1.35rem; font-weight: 800; color: var(--kumon-blue-dark);" id="displayAutoKumonId">
+              KUM-0001
+            </div>
+          </div>
+          <span class="brand-badge" style="background: var(--kumon-yellow);">GERADO AUTO</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="studentNameInput">Nome Completo do Aluno *</label>
+          <input type="text" id="studentNameInput" class="neo-input" required placeholder="Ex: Lucas Henrique Santos" style="width: 100%;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label" for="studentAgeInput">Idade do Aluno</label>
+            <input type="number" id="studentAgeInput" class="neo-input" placeholder="Ex: 9 anos" style="width: 100%;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="studentAvatarSelect">Avatar / Ícone</label>
+            <select id="studentAvatarSelect" class="neo-input" style="width: 100%;">
+              <option value="👦">👦 Menino 1</option>
+              <option value="👧">👧 Menina 1</option>
+              <option value="🧑">🧑 Estudante 1</option>
+              <option value="🧒">🧒 Jovem</option>
+              <option value="👩‍🎓">👩‍🎓 Graduada</option>
+              <option value="👨‍🎓">👨‍🎓 Graduado</option>
+              <option value="🌟">🌟 Estrela</option>
+              <option value="📚">📚 Livros</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Vínculo com as matérias adicionadas pelos professores -->
+        <div class="form-group">
+          <label class="form-label">Disciplinas Vinculadas ao Aluno *</label>
+          <div style="font-size: 0.8rem; color: var(--kumon-gray-muted); margin-bottom: 6px;">
+            Selecione as matérias que este aluno estuda no Kumon:
+          </div>
+          <div id="studentSubjectsContainer" style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <!-- Preenchido dinamicamente com as matérias do sistema -->
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label" for="studentParentInput">Nome do Responsável</label>
+            <input type="text" id="studentParentInput" class="neo-input" placeholder="Ex: Cláudia Santos" style="width: 100%;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="studentPhoneInput">WhatsApp do Responsável</label>
+            <input type="text" id="studentPhoneInput" class="neo-input" placeholder="(11) 98765-4321" style="width: 100%;">
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+          <button type="button" class="btn-neo btn-outline" id="btnCancelStudentModal">Cancelar</button>
+          <button type="submit" class="btn-neo btn-success" id="btnSaveStudent">Salvar Aluno</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL 3: ADICIONAR NOVA MATÉRIA (DISCIPLINA)
+       ========================================================================== -->
+  <div class="neo-modal-overlay" id="subjectModalOverlay">
+    <div class="neo-modal">
+      <div class="neo-card-header" style="margin-bottom: 14px;">
+        <h3 class="neo-title"><span>📚</span> Nova Matéria do Kumon</h3>
+        <button class="btn-neo btn-outline" id="btnCloseSubjectModal" style="padding: 4px 10px; font-size: 1.1rem;">✕</button>
+      </div>
+
+      <form id="formSubject">
+        <div class="form-group">
+          <label class="form-label" for="subjectNameInput">Nome da Matéria *</label>
+          <input type="text" id="subjectNameInput" class="neo-input" required placeholder="Ex: Matemática, Português, Kokugo..." style="width: 100%;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label" for="subjectIconInput">Ícone / Emoji</label>
+            <input type="text" id="subjectIconInput" class="neo-input" value="📐" style="width: 100%;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="subjectColorInput">Cor da Etiqueta</label>
+            <select id="subjectColorInput" class="neo-input" style="width: 100%;">
+              <option value="#93C5FD">Azul Céu</option>
+              <option value="#FDE047">Amarelo Brilhante</option>
+              <option value="#C4B5FD">Roxo Suave</option>
+              <option value="#86EFAC">Verde Menta</option>
+              <option value="#FDBA74">Laranja Pastel</option>
+              <option value="#F9A8D4">Rosa Chiclete</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+          <button type="button" class="btn-neo btn-outline" id="btnCancelSubjectModal">Cancelar</button>
+          <button type="submit" class="btn-neo btn-success" id="btnSaveSubject">Adicionar Matéria</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: CONFIRMAÇÃO DE PIN DE SEGURANÇA (4 DÍGITOS)
+       ========================================================================== -->
+  <div class="neo-modal-overlay" id="pinLockModalOverlay">
+    <div class="neo-modal" style="max-width: 360px; text-align: center;">
+      <div class="teacher-avatar-mini" id="pinTeacherAvatar" style="width: 58px; height: 58px; font-size: 2rem; margin: 0 auto 10px;">👩‍🏫</div>
+      <h3 class="neo-title" style="justify-content: center; font-size: 1.3rem;">Acesso de Segurança</h3>
+      <p style="font-size: 0.88rem; color: var(--kumon-gray-muted); margin-top: 4px;" id="pinGreetingText">Digite seu PIN de 4 dígitos:</p>
+      
+      <div class="pin-pad-container">
+        <div class="pin-display-dots">
+          <div class="pin-dot" id="pindot-0"></div>
+          <div class="pin-dot" id="pindot-1"></div>
+          <div class="pin-dot" id="pindot-2"></div>
+          <div class="pin-dot" id="pindot-3"></div>
+        </div>
+
+        <div class="pin-keypad">
+          <button type="button" class="pin-key" data-digit="1">1</button>
+          <button type="button" class="pin-key" data-digit="2">2</button>
+          <button type="button" class="pin-key" data-digit="3">3</button>
+          <button type="button" class="pin-key" data-digit="4">4</button>
+          <button type="button" class="pin-key" data-digit="5">5</button>
+          <button type="button" class="pin-key" data-digit="6">6</button>
+          <button type="button" class="pin-key" data-digit="7">7</button>
+          <button type="button" class="pin-key" data-digit="8">8</button>
+          <button type="button" class="pin-key" data-digit="9">9</button>
+          <button type="button" class="pin-key" id="btnPinClear" style="font-size: 1.1rem; color: var(--kumon-red);">✕</button>
+          <button type="button" class="pin-key" data-digit="0">0</button>
+          <button type="button" class="pin-key" id="btnPinBackspace" style="font-size: 1.1rem; color: var(--kumon-navy);">⌫</button>
+        </div>
+      </div>
+
+      <div style="margin-top: 8px;">
+        <button type="button" class="btn-neo btn-outline" id="btnPinLogout" style="font-size: 0.82rem; padding: 6px 14px;">
+          🚪 Sair da Conta
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contêiner oculto para impressão de crachás -->
+  <div id="printBatchContainer" style="display: none;"></div>
+
+  <!-- Bibliotecas JS Locais e de Lógica -->
+  <script src="assets/qrcode.min.js"></script>
+  <script src="assets/html5-qrcode.min.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="audio.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
