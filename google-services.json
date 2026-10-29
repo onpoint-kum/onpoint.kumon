@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1018160708137",
+    "project_id": "kumon-onpoint",
+    "storage_bucket": "kumon-onpoint.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1018160708137:android:042e172c6d3931a6f5fa38",
+        "android_client_info": {
+          "package_name": "com.onpoint.kumon"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1018160708137-4lg2h422et0rbrvfi8162a4bctkn8s4b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdL_TqUy2iK_zUpOUWW4Arfmk9d0H1VX8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1018160708137-4lg2h422et0rbrvfi8162a4bctkn8s4b.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

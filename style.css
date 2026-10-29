@@ -1370,39 +1370,56 @@ body {
   }
 
   .nav-btn {
-    flex: 1;
-    min-width: 50px;
-    padding: 5px 2px;
-    font-size: 0.68rem;
+    flex: 1 1 0;
+    min-width: 0 !important;
+    width: 100%;
+    padding: 6px 1px !important;
+    white-space: normal !important;
+    overflow: hidden;
     flex-direction: column;
-    gap: 2px;
-    border: none;
-    box-shadow: none;
+    gap: 1px;
+    border: none !important;
+    box-shadow: none !important;
     background: transparent;
     border-radius: 10px;
     text-align: center;
     position: relative;
   }
 
-  .nav-btn span:first-child {
-    font-size: 1.2rem;
+  .nav-btn .nav-icon {
+    font-size: 1.25rem;
     line-height: 1;
+    display: block;
+  }
+
+  .nav-btn .nav-label {
+    font-size: 0.62rem;
+    font-weight: 800;
+    line-height: 1.1;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    margin-top: 2px;
   }
 
   .nav-btn.active {
-    background: var(--kumon-yellow-soft);
-    color: var(--kumon-navy);
-    border: 2px solid var(--kumon-border);
-    box-shadow: 2px 2px 0px var(--kumon-border);
+    background: var(--kumon-yellow-soft) !important;
+    color: var(--kumon-navy) !important;
+    border: 2px solid var(--kumon-border) !important;
+    box-shadow: 2px 2px 0px var(--kumon-border) !important;
   }
 
   .nav-counter {
     position: absolute;
-    top: 2px;
-    right: 4px;
-    font-size: 0.62rem;
+    top: 1px;
+    right: 2px;
+    font-size: 0.58rem;
+    font-weight: 800;
     padding: 0 4px;
     border-radius: 99px;
+    border-width: 1px;
   }
 
   /* Cards e Conteúdo */

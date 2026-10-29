@@ -1,4 +1,8 @@
 node_modules/
+www/
+output-apk/
+android/
 .DS_Store
 Thumbs.db
 *.log
+*.keystore

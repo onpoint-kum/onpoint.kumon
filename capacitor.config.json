@@ -1,0 +1,8 @@
+{
+  "appId": "com.onpoint.kumon",
+  "appName": "Kumon Onpoint",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
