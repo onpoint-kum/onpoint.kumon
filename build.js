@@ -30,6 +30,14 @@ filesToCopy.forEach(file => {
   }
 });
 
+// Copia capacitor.js do @capacitor/core se existir
+const capJsSrc = path.join(srcDir, 'node_modules', '@capacitor', 'core', 'dist', 'capacitor.js');
+const capJsDest = path.join(outDir, 'capacitor.js');
+if (fs.existsSync(capJsSrc)) {
+  fs.copyFileSync(capJsSrc, capJsDest);
+  console.log('✅ capacitor.js incluído no diretório www');
+}
+
 // Copia diretórios (como assets)
 dirsToCopy.forEach(dir => {
   const src = path.join(srcDir, dir);

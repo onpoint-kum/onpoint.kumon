@@ -39,21 +39,8 @@ jobs:
         env:
           CI: true
 
-      - name: Prepare Android (Google Services & Signing config)
+      - name: Prepare Android (Google Services, Keystore, Strings & Icons)
         run: node scripts/prepare-android.js
-
-      - name: Generate Release Keystore
-        run: |
-          keytool -genkeypair -v \
-            -keystore android/app/release.keystore \
-            -alias onpoint \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass kumon2026 \
-            -keypass kumon2026 \
-            -dname "CN=Kumon Onpoint, OU=Educacao, O=Kumon, L=Sao Paulo, ST=SP, C=BR"
-          echo "✅ Keystore de release gerada com sucesso!"
 
       - name: Sync Capacitor Android
         run: npx cap sync android

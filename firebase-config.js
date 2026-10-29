@@ -65,13 +65,62 @@ const KumonFirebase = {
     }
   },
 
-  // Login com Google via Popup ou Redirecionamento
+  // Login com Google: Nativo no Android (sem Chrome) / Popup na Web
   async loginWithGoogle() {
     if (!this.auth) {
       this.init();
     }
     if (!this.auth) throw new Error('Firebase Auth não disponível.');
 
+    // 1. Verifica se está rodando dentro do App Android Nativo (Capacitor)
+    const isCapacitorNative = Boolean(
+      window.Capacitor && (
+        (typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) ||
+        window.Capacitor.getPlatform() === 'android'
+      )
+    );
+
+    const googleAuthPlugin = window.Capacitor?.Plugins?.GoogleAuth;
+
+    if (isCapacitorNative && googleAuthPlugin) {
+      console.log('Kumon Onpoint: Executando login Google nativo embutido no Android...');
+      try {
+        // Inicializa com o Client ID Web do Firebase
+        try {
+          await googleAuthPlugin.initialize({
+            clientId: '1018160708137-4lg2h422et0rbrvfi8162a4bctkn8s4b.apps.googleusercontent.com',
+            scopes: ['profile', 'email'],
+            grantOfflineAccess: true
+          });
+        } catch (initErr) {
+          console.warn('Aviso na inicialização do GoogleAuth:', initErr);
+        }
+
+        // Abre o seletor nativo de contas do sistema Android (sem abrir Chrome!)
+        const googleUser = await googleAuthPlugin.signIn();
+        console.log('Login Google nativo obteve usuário:', googleUser?.email);
+
+        const idToken = googleUser?.authentication?.idToken || googleUser?.idToken;
+        if (!idToken) {
+          throw new Error('Não foi possível obter a credencial nativa do Google.');
+        }
+
+        // Credencia o usuário no Firebase com o ID Token nativo retornado pelo Android
+        const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+        const result = await this.auth.signInWithCredential(credential);
+        return result.user;
+      } catch (nativeErr) {
+        console.error('Falha no login Google nativo:', nativeErr);
+        const errMsg = String(nativeErr?.message || nativeErr || '');
+        if (errMsg.includes('cancel') || errMsg.includes('12501')) {
+          throw new Error('Login cancelado pelo usuário.');
+        }
+        // Se der erro de configuração (ex: 10 / DEVELOPER_ERROR), tenta fallback para web popup
+        console.warn('Tentando fallback para popup web...', nativeErr);
+      }
+    }
+
+    // 2. Fluxo Web padrão (Navegador desktop, Vercel ou fallback)
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     
@@ -91,6 +140,16 @@ const KumonFirebase = {
   async logout() {
     if (!this.auth) return;
     this.cleanupListeners();
+
+    // Desconecta da sessão nativa do Google Play Services no Android se aplicável
+    if (window.Capacitor?.Plugins?.GoogleAuth) {
+      try {
+        await window.Capacitor.Plugins.GoogleAuth.signOut();
+      } catch (e) {
+        console.warn('Aviso ao deslogar da conta Google nativa:', e);
+      }
+    }
+
     await this.auth.signOut();
     this.currentUser = null;
     this.currentTeacher = null;

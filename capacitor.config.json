@@ -2,7 +2,16 @@
   "appId": "com.onpoint.kumon",
   "appName": "Kumon Onpoint",
   "webDir": "www",
+  "bundledWebRuntime": true,
   "server": {
     "androidScheme": "https"
+  },
+  "plugins": {
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "1018160708137-4lg2h422et0rbrvfi8162a4bctkn8s4b.apps.googleusercontent.com",
+      "clientId": "1018160708137-4lg2h422et0rbrvfi8162a4bctkn8s4b.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
+    }
   }
 }
