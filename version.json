@@ -1,6 +1,6 @@
 {
-  "version": "1.4.0",
-  "build": 8,
+  "version": "1.5.0",
+  "build": 9,
   "appName": "Kumon Onpoint",
-  "releaseName": "Status 'Não trouxe' na Lição de Casa & Nova Organização Compacta da Tabela de Alunos"
+  "releaseName": "Foto de Perfil do Professor, Cards Mobile de Alunos & Barra de Navegação Estável"
 }

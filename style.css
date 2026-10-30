@@ -345,39 +345,43 @@ body {
 /* Saudação personalizada do Professor: "Oi, Tia Isa! 👋" */
 .teacher-greeting-pill {
   background: var(--kumon-yellow-soft);
-  border: var(--border-thin);
-  border-radius: var(--radius-md);
-  padding: 6px 14px;
+  border: var(--border-thick);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.15s ease;
+  box-shadow: 2px 2px 0px var(--kumon-border);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .teacher-greeting-pill:hover {
   transform: translateY(-2px);
+  box-shadow: 3px 3px 0px var(--kumon-border);
 }
 
 .teacher-avatar-mini {
-  width: 28px;
-  height: 28px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  border: 1.5px solid var(--kumon-border);
   object-fit: cover;
   background: var(--kumon-yellow);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.95rem;
+  font-size: 1.35rem;
+  overflow: hidden;
 }
 
-.teacher-greeting-text {
-  font-family: var(--font-heading);
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: #713F12;
+.teacher-avatar-mini img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* ==========================================================================
@@ -1518,7 +1522,7 @@ body {
     font-size: 0.85rem;
   }
 
-  /* Barra de Navegação Inferior Nativa (Bottom App Bar) */
+  /* Barra de Navegação Inferior Nativa (Bottom App Bar Impecável) */
   .nav-container {
     position: fixed;
     bottom: 0;
@@ -1530,58 +1534,69 @@ body {
     border-top: var(--border-thick);
     border-bottom: none;
     z-index: 1000;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 6px));
-    box-shadow: 0 -3px 12px rgba(20, 34, 50, 0.12);
+    padding: 4px 6px calc(6px + env(safe-area-inset-bottom, 4px));
+    box-shadow: 0 -2px 10px rgba(20, 34, 50, 0.08);
   }
 
   .nav-tabs {
     display: flex;
-    justify-content: space-around;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-between;
     padding: 0;
     margin: 0 auto;
+    width: 100%;
     max-width: 100%;
-    gap: 2px;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .nav-tabs::-webkit-scrollbar {
-    display: none;
+    gap: 4px;
+    overflow: hidden;
   }
 
   .nav-btn {
     flex: 1 1 0;
     min-width: 0 !important;
     width: 100%;
-    padding: 6px 1px !important;
-    white-space: normal !important;
-    overflow: hidden;
+    height: 52px;
+    padding: 4px 2px !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+    display: flex;
     flex-direction: column;
-    gap: 1px;
-    border: none !important;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: 2px solid transparent !important;
     box-shadow: none !important;
     background: transparent;
     border-radius: 10px;
     text-align: center;
     position: relative;
+    transform: none !important;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .nav-btn:hover, .nav-btn:active {
+    transform: none !important;
+    box-shadow: none !important;
   }
 
   .nav-btn .nav-icon {
     font-size: 1.25rem;
     line-height: 1;
     display: block;
+    margin: 0;
   }
 
   .nav-btn .nav-label {
     font-size: 0.62rem;
     font-weight: 800;
-    line-height: 1.1;
+    line-height: 1;
     display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
-    margin-top: 2px;
+    margin-top: 1px;
+    color: var(--kumon-navy);
   }
 
   .nav-btn.active {
@@ -1589,17 +1604,23 @@ body {
     color: var(--kumon-navy) !important;
     border: 2px solid var(--kumon-border) !important;
     box-shadow: 2px 2px 0px var(--kumon-border) !important;
+    transform: none !important;
+  }
+
+  .nav-btn.active .nav-label {
+    color: var(--kumon-navy);
   }
 
   .nav-counter {
     position: absolute;
-    top: 1px;
-    right: 2px;
+    top: 2px;
+    right: 4px;
     font-size: 0.58rem;
     font-weight: 800;
-    padding: 0 4px;
+    padding: 1px 4px;
     border-radius: 99px;
-    border-width: 1px;
+    border-width: 1.5px;
+    line-height: 1;
   }
 
   /* Cards e Conteúdo */
@@ -2032,4 +2053,97 @@ body {
   font-size: 0.82rem;
   color: var(--kumon-navy);
   margin-top: 2px;
+}
+
+/* ==========================================================================
+   CARDS DE ALUNO PARA VISUALIZAÇÃO MOBILE
+   ========================================================================== */
+.students-mobile-view {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.student-mobile-card {
+  background: #FFFFFF;
+  border: var(--border-thick);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  box-shadow: 2.5px 2.5px 0px var(--kumon-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.student-mobile-card:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px var(--kumon-border);
+  background: var(--kumon-soft-bg);
+}
+
+.student-mobile-avatar {
+  font-size: 2.2rem;
+  line-height: 1;
+  width: 50px;
+  height: 50px;
+  border-radius: var(--radius-sm);
+  background: var(--kumon-soft-bg);
+  border: 1.5px solid var(--kumon-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.student-mobile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-mobile-name {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--kumon-navy);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  line-height: 1.2;
+}
+
+.student-mobile-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+
+.student-mobile-subjects {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.student-mobile-arrow {
+  color: var(--kumon-border);
+  font-size: 1.4rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  padding-left: 4px;
+}
+
+@media (max-width: 768px) {
+  .students-desktop-view {
+    display: none !important;
+  }
+
+  .students-mobile-view {
+    display: flex !important;
+  }
 }

@@ -81,11 +81,10 @@
         </div>
         
         <div class="header-right">
-          <!-- Saudação fofa personalizada: "Oi, Tia Isa! 👋" -->
-          <div class="teacher-greeting-pill" id="btnTeacherProfilePill" title="Clique para editar seu perfil de professor(a)">
+          <!-- Botão perfil do Professor (Avatar / Foto) -->
+          <button type="button" class="teacher-greeting-pill" id="btnTeacherProfilePill" title="Clique para ver seu perfil de professor(a)">
             <div class="teacher-avatar-mini" id="headerTeacherAvatar">👩‍🏫</div>
-            <span class="teacher-greeting-text" id="headerTeacherGreeting">Professor(a)</span>
-          </div>
+          </button>
 
           <button class="btn-neo btn-outline" id="btnAudioToggle" title="Ativar/Desativar Efeitos Sonoros">
             <span id="audioIcon">🔊</span>
@@ -363,7 +362,8 @@
             </select>
           </div>
 
-          <div class="table-responsive">
+          <!-- Visualização em Tabela (Desktop) -->
+          <div class="table-responsive students-desktop-view">
             <table class="neo-table" id="studentsTable">
               <thead>
                 <tr>
@@ -379,6 +379,11 @@
                 <!-- Preenchido via JavaScript -->
               </tbody>
             </table>
+          </div>
+
+          <!-- Visualização em Lista de Cards (Mobile & Touch) -->
+          <div class="students-mobile-view" id="studentsMobileList">
+            <!-- Preenchido via JavaScript com cards intuitivos que abrem o perfil completo com 1 clique -->
           </div>
         </div>
       </section>
@@ -535,6 +540,27 @@
       </div>
 
       <form id="formTeacherProfile">
+        <!-- Foto de Perfil do Professor -->
+        <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px; background: var(--kumon-soft-bg); border: var(--border-thick); border-radius: var(--radius-sm); padding: 10px 14px;">
+          <div id="teacherPhotoPreview" style="width: 54px; height: 54px; border-radius: 50%; border: 2px solid var(--kumon-border); background: var(--kumon-yellow); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; overflow: hidden; flex-shrink: 0; box-shadow: 2px 2px 0 var(--kumon-border);">
+            👩‍🏫
+          </div>
+          <div style="flex: 1;">
+            <label class="form-label" style="margin-bottom: 3px;">Foto de Perfil</label>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <label class="btn-neo btn-outline" style="padding: 4px 10px; font-size: 0.8rem; cursor: pointer; margin-bottom: 0;">
+                📷 Escolher Foto
+                <input type="file" id="teacherPhotoInput" accept="image/*" style="display: none;">
+              </label>
+              <button type="button" class="btn-neo btn-outline" id="btnRemoveTeacherPhoto" style="padding: 4px 8px; font-size: 0.8rem; color: var(--kumon-red); display: none;">
+                Remover
+              </button>
+            </div>
+            <span style="font-size: 0.72rem; color: var(--kumon-gray-muted);">Compactada automaticamente para salvar rápido</span>
+          </div>
+        </div>
+        <input type="hidden" id="teacherPhotoBase64" value="">
+
         <div class="form-group">
           <label class="form-label" for="teacherFullName">Nome Completo *</label>
           <input type="text" id="teacherFullName" class="neo-input" required placeholder="Ex: Gabriel Rocha" style="width: 100%;">

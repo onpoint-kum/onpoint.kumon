@@ -196,7 +196,11 @@ function showPinLockModal() {
   document.getElementById('pinGreetingText').textContent = `Olá, ${nickname}! Digite seu PIN de 4 dígitos:`;
   const avatarEl = document.getElementById('pinTeacherAvatar');
   if (avatarEl && teacher) {
-    avatarEl.textContent = teacher.gender === 'Masculino' ? '👨‍🏫' : '👩‍🏫';
+    if (teacher.photoBase64) {
+      avatarEl.innerHTML = `<img src="${teacher.photoBase64}" alt="${nickname}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+    } else {
+      avatarEl.textContent = teacher.gender === 'Masculino' ? '👨‍🏫' : '👩‍🏫';
+    }
   }
 
   State.currentPinInput = "";
@@ -267,17 +271,21 @@ function verifyPinSubmission() {
 }
 
 function updateTeacherHeaderUI(teacher) {
-  const greetingEl = document.getElementById('headerTeacherGreeting');
   const avatarEl = document.getElementById('headerTeacherAvatar');
   const cardTeacherLabel = document.getElementById('cardTeacherLabel');
-
   const nickname = teacher.nickname || generateCuteNickname(teacher.fullName, teacher.gender);
-  greetingEl.textContent = `Oi, ${nickname}! 👋`;
-  
-  if (teacher.gender === 'Masculino') {
-    avatarEl.textContent = '👨‍🏫';
-  } else {
-    avatarEl.textContent = '👩‍🏫';
+
+  if (avatarEl) {
+    if (teacher.photoBase64) {
+      avatarEl.innerHTML = `<img src="${teacher.photoBase64}" alt="${nickname}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+    } else {
+      avatarEl.textContent = teacher.gender === 'Masculino' ? '👨‍🏫' : '👩‍🏫';
+    }
+  }
+
+  const pill = document.getElementById('btnTeacherProfilePill');
+  if (pill) {
+    pill.setAttribute('title', `Perfil de ${nickname} (Toque para ver)`);
   }
 
   if (cardTeacherLabel) {
@@ -953,7 +961,14 @@ function renderStudentsList() {
     return true;
   });
 
+  const mobileList = document.getElementById('studentsMobileList');
+
   if (filtered.length === 0) {
+    const emptyMsg = `
+      <div style="text-align: center; padding: 28px; color: var(--kumon-gray-muted);">
+        Nenhum aluno encontrado para os filtros selecionados.
+      </div>
+    `;
     tbody.innerHTML = `
       <tr>
         <td colspan="6" style="text-align: center; padding: 28px; color: var(--kumon-gray-muted);">
@@ -961,7 +976,57 @@ function renderStudentsList() {
         </td>
       </tr>
     `;
+    if (mobileList) mobileList.innerHTML = emptyMsg;
     return;
+  }
+
+  // Renderiza Cards Mobile
+  if (mobileList) {
+    mobileList.innerHTML = filtered.map(st => {
+      const orientadorNome = st.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'A Definir');
+      const adultBadge = st.isAdult
+        ? `<span class="brand-badge" style="background:#E0E7FF; color:#3730A3; font-size:0.68rem;">🧑 ADULTO</span>`
+        : '';
+
+      const replacements = st.replacementClasses || 0;
+      const repBadge = replacements > 0
+        ? `<span class="brand-badge" style="background:#FEF3C7; color:#92400E; border:1px solid #F59E0B; font-weight:800; font-size:0.7rem;">🔄 ${replacements} repor</span>`
+        : '';
+
+      const subBadges = (st.subjects || []).map(s => {
+        const cleanS = (s || '').trim();
+        const subjObj = State.subjects.find(sub => (sub.name || '').trim().toLowerCase() === cleanS.toLowerCase());
+        const bg = subjObj ? subjObj.color : '#E0F2FE';
+        const icon = subjObj?.icon ? `${subjObj.icon} ` : '';
+        return `<span class="subject-badge" style="background:${bg}; font-size:0.72rem; padding:2px 8px;">${icon}${cleanS}</span>`;
+      }).join('');
+
+      return `
+        <div class="student-mobile-card" onclick="openStudentProfileModal('${st.id || st.kumonId}')" title="Toque para ver todo o histórico e detalhes">
+          <div class="student-mobile-avatar">
+            ${st.avatar || (st.isAdult ? '🧑' : '👦')}
+          </div>
+          <div class="student-mobile-info">
+            <div class="student-mobile-name">
+              <span>${st.name}</span>
+              ${adultBadge}
+              ${st.age ? `<span style="font-size:0.78rem; font-weight:600; color:var(--kumon-gray-muted);">(${st.age}a)</span>` : ''}
+            </div>
+            <div class="student-mobile-meta">
+              <span class="brand-badge" style="background:#E0F2FE; color:var(--kumon-blue-dark); font-weight:800; font-size:0.72rem; padding:1px 6px;">
+                ${st.kumonId}
+              </span>
+              <span class="brand-badge" style="background:var(--kumon-soft-bg); border:1.5px solid var(--kumon-border); font-size:0.7rem; color:var(--kumon-navy); padding:1px 7px;">
+                👩‍🏫 ${orientadorNome}
+              </span>
+              ${repBadge}
+            </div>
+            ${subBadges ? `<div class="student-mobile-subjects">${subBadges}</div>` : ''}
+          </div>
+          <div class="student-mobile-arrow">›</div>
+        </div>
+      `;
+    }).join('');
   }
 
   tbody.innerHTML = filtered.map(st => {
@@ -1912,6 +1977,28 @@ function initUIEventListeners() {
     document.getElementById('teacherNickname').value = generateCuteNickname(fullName, gender);
   });
 
+  // Upload e compressão de foto de perfil do professor
+  document.getElementById('teacherPhotoInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    try {
+      const compressedDataUrl = await compressImageToDataUrl(file, 200, 200, 0.75);
+      document.getElementById('teacherPhotoBase64').value = compressedDataUrl;
+      updateTeacherPhotoPreview(compressedDataUrl);
+    } catch (err) {
+      console.error('Erro ao processar foto:', err);
+      alert('Não foi possível processar a imagem selecionada.');
+    }
+  });
+
+  // Remover foto de perfil
+  document.getElementById('btnRemoveTeacherPhoto')?.addEventListener('click', () => {
+    document.getElementById('teacherPhotoBase64').value = '';
+    const gender = document.getElementById('teacherGender').value;
+    updateTeacherPhotoPreview('', gender);
+  });
+
   // Aluno Modal
   document.getElementById('btnOpenNewStudentModal')?.addEventListener('click', openNewStudentModal);
   document.getElementById('btnCloseStudentModal')?.addEventListener('click', () => {
@@ -2113,7 +2200,13 @@ function openTeacherMiniProfileModal() {
   const phoneEl = document.getElementById('miniProfilePhone');
   const ageGenderEl = document.getElementById('miniProfileAgeGender');
 
-  if (avatarEl) avatarEl.textContent = avatar;
+  if (avatarEl) {
+    if (teacher && teacher.photoBase64) {
+      avatarEl.innerHTML = `<img src="${teacher.photoBase64}" alt="${nickname}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+    } else {
+      avatarEl.textContent = avatar;
+    }
+  }
   if (nickEl) nickEl.textContent = nickname;
   if (nameEl) nameEl.textContent = fullName;
   if (emailEl) emailEl.textContent = email;
@@ -2128,12 +2221,24 @@ function openTeacherProfileModal(isFirstTime = false) {
   const user = State.currentUser;
   const teacher = State.currentTeacher;
   const groupMasterKey = document.getElementById('groupMasterKey');
+  const btnClose = document.getElementById('btnCloseTeacherModal');
+
+  // Na hora de criar a conta pela 1ª vez, oculta o 'X' para não quebrar o fluxo!
+  const isNew = isFirstTime || !teacher || !teacher.isRegistered;
+  if (btnClose) {
+    btnClose.style.display = isNew ? 'none' : 'block';
+  }
 
   document.getElementById('teacherFullName').value = (teacher && teacher.fullName) || (user && user.displayName) || '';
   document.getElementById('teacherGender').value = (teacher && teacher.gender) || 'Feminino';
   document.getElementById('teacherAge').value = (teacher && teacher.age) || '';
   document.getElementById('teacherPhone').value = (teacher && teacher.phone) || '';
   
+  // Foto de perfil preview e campo oculto
+  const photoBase64 = (teacher && teacher.photoBase64) || '';
+  document.getElementById('teacherPhotoBase64').value = photoBase64;
+  updateTeacherPhotoPreview(photoBase64, (teacher && teacher.gender) || 'Feminino');
+
   if (teacher && teacher.nickname) {
     document.getElementById('teacherNickname').value = teacher.nickname;
   } else {
@@ -2146,7 +2251,6 @@ function openTeacherProfileModal(isFirstTime = false) {
   }
 
   // Chave de acesso e PIN
-  const isNew = !teacher || !teacher.isRegistered;
   if (groupMasterKey) {
     groupMasterKey.style.display = isNew ? 'block' : 'none';
   }
@@ -2156,6 +2260,59 @@ function openTeacherProfileModal(isFirstTime = false) {
   modal.classList.add('active');
 }
 
+function updateTeacherPhotoPreview(photoBase64, gender = 'Feminino') {
+  const preview = document.getElementById('teacherPhotoPreview');
+  const btnRemove = document.getElementById('btnRemoveTeacherPhoto');
+  if (!preview) return;
+
+  if (photoBase64) {
+    preview.innerHTML = `<img src="${photoBase64}" alt="Foto" style="width:100%; height:100%; object-fit:cover;">`;
+    if (btnRemove) btnRemove.style.display = 'inline-block';
+  } else {
+    preview.innerHTML = gender === 'Masculino' ? '👨‍🏫' : '👩‍🏫';
+    if (btnRemove) btnRemove.style.display = 'none';
+  }
+}
+
+// Compressão inteligente de imagem usando Canvas para manter o Firebase leve (<40KB)
+function compressImageToDataUrl(file, maxWidth = 220, maxHeight = 220, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 async function saveTeacherProfile(e) {
   e.preventDefault();
   const fullName = document.getElementById('teacherFullName').value.trim();
@@ -2163,6 +2320,7 @@ async function saveTeacherProfile(e) {
   const age = document.getElementById('teacherAge').value.trim();
   const phone = document.getElementById('teacherPhone').value.trim();
   const nickname = document.getElementById('teacherNickname').value.trim() || generateCuteNickname(fullName, gender);
+  const photoBase64 = document.getElementById('teacherPhotoBase64').value || '';
   
   const isNew = !State.currentTeacher || !State.currentTeacher.isRegistered;
   const masterKeyInput = document.getElementById('teacherMasterKey').value.trim();
@@ -2190,24 +2348,28 @@ async function saveTeacherProfile(e) {
     age: age ? parseInt(age, 10) : null,
     phone,
     nickname,
+    photoBase64,
     pinCode: pinCodeInput,
     isRegistered: true,
     email: State.currentUser ? State.currentUser.email : ''
   };
 
-  if (KumonFirebase.currentUser) {
-    await KumonFirebase.saveTeacherProfile(KumonFirebase.currentUser.uid, profileData);
+  const userUid = (State.currentUser && State.currentUser.uid) || (KumonFirebase.currentUser && KumonFirebase.currentUser.uid);
+
+  if (KumonFirebase.db && userUid) {
+    await KumonFirebase.saveTeacherProfile(userUid, profileData);
   } else {
     State.currentTeacher = profileData;
   }
 
+  State.currentTeacher = profileData;
   State.isPinUnlocked = true;
   updateTeacherHeaderUI(profileData);
   document.getElementById('teacherModalOverlay').classList.remove('active');
   showAppDashboard(true);
 
   if (window.kumonAudio) window.kumonAudio.playCheckIn();
-  alert(`Cadastro autorizado com sucesso! Bem-vindo(a), ${nickname}!`);
+  alert(`Perfil atualizado com sucesso! Olá, ${nickname}!`);
 }
 
 function updateLiveTimers() {
