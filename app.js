@@ -299,6 +299,7 @@ function initFirestoreListeners() {
       renderSubjects();
       updateSubjectsFilter();
       renderStudentFormSubjectChecks();
+      renderStudentsList(); // Re-renderiza alunos para sincronizar as cores e tags das matérias
       updateBadges();
     }, (error) => console.error('Erro ao ouvir matérias:', error));
   KumonFirebase.unsubscribers.push(unsubSubjects);
@@ -309,6 +310,7 @@ function initFirestoreListeners() {
     .onSnapshot((snapshot) => {
       State.students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       renderStudentsList();
+      renderSubjects(); // Re-calcula a contagem de alunos matriculados em cada matéria
       renderQuickTestChips();
       updateCardStudentSelect();
       updateBadges();
@@ -929,7 +931,9 @@ function renderStudentsList() {
 
     // 2. Filtro por Matéria
     if (subjectVal !== 'all') {
-      if (!(s.subjects || []).includes(subjectVal)) return false;
+      const subjectClean = subjectVal.trim().toLowerCase();
+      const hasSubject = (s.subjects || []).some(sub => (sub || '').trim().toLowerCase() === subjectClean);
+      if (!hasSubject) return false;
     }
 
     // 3. Filtro por Dia da Semana
@@ -962,9 +966,11 @@ function renderStudentsList() {
 
   tbody.innerHTML = filtered.map(st => {
     const subjectsBadges = (st.subjects || []).map(s => {
-      const subjObj = State.subjects.find(sub => sub.name === s);
-      const bg = subjObj ? subjObj.color : '#E2E8F0';
-      return `<span class="subject-badge" style="background:${bg};">${s}</span>`;
+      const cleanS = (s || '').trim();
+      const subjObj = State.subjects.find(sub => (sub.name || '').trim().toLowerCase() === cleanS.toLowerCase());
+      const bg = subjObj ? subjObj.color : '#E0F2FE';
+      const icon = subjObj?.icon ? `${subjObj.icon} ` : '';
+      return `<span class="subject-badge" style="background:${bg};">${icon}${cleanS}</span>`;
     }).join('');
 
     const daysBadges = (st.classDays && st.classDays.length > 0)
@@ -1147,6 +1153,9 @@ function openNewStudentModal() {
 
   updateAutoKumonIdDisplay();
   renderStudentFormSubjectChecks();
+  const firstSubCb = document.querySelector('input[name="studentSubjectCheck"]');
+  if (firstSubCb) firstSubCb.checked = true;
+
   document.getElementById('studentModalOverlay').classList.add('active');
 }
 
@@ -1188,11 +1197,12 @@ function openEditStudentModal(studentDocId) {
   const displayEl = document.getElementById('displayAutoKumonId');
   if (displayEl) displayEl.textContent = student.kumonId;
 
-  // Renderiza matérias e marca as do aluno
+  // Renderiza matérias e marca as do aluno de forma segura
   renderStudentFormSubjectChecks();
   const checkboxes = document.querySelectorAll('input[name="studentSubjectCheck"]');
+  const studentSubs = (student.subjects || []).map(s => String(s).trim().toLowerCase());
   checkboxes.forEach(cb => {
-    cb.checked = (student.subjects || []).includes(cb.value);
+    cb.checked = studentSubs.includes(cb.value.trim().toLowerCase());
   });
 
   document.getElementById('studentModalOverlay').classList.add('active');
@@ -1207,9 +1217,9 @@ function renderStudentFormSubjectChecks() {
     return;
   }
 
-  container.innerHTML = State.subjects.map((sub, idx) => `
+  container.innerHTML = State.subjects.map(sub => `
     <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; cursor: pointer; background: #fff; border: 2px solid var(--kumon-border); border-radius: var(--radius-sm); padding: 6px 12px; box-shadow: 2px 2px 0px var(--kumon-border);">
-      <input type="checkbox" name="studentSubjectCheck" value="${sub.name}" ${idx === 0 ? 'checked' : ''}>
+      <input type="checkbox" name="studentSubjectCheck" value="${sub.name}">
       <span>${sub.icon || '📚'} ${sub.name}</span>
     </label>
   `).join('');
@@ -1555,14 +1565,17 @@ function renderSubjects() {
   }
 
   container.innerHTML = State.subjects.map(sub => {
-    const studentsInSubject = State.students.filter(st => (st.subjects || []).includes(sub.name)).length;
+    const subClean = (sub.name || '').trim().toLowerCase();
+    const studentsInSubject = State.students.filter(st => 
+      (st.subjects || []).some(s => (s || '').trim().toLowerCase() === subClean)
+    ).length;
     return `
       <div class="subject-item-card">
         <div class="subject-item-left">
           <div class="subject-color-tag" style="background:${sub.color || '#93C5FD'};"></div>
           <div>
             <div class="subject-item-title">${sub.icon || '📚'} ${sub.name}</div>
-            <div class="subject-item-count">${studentsInSubject} alunos matriculados</div>
+            <div class="subject-item-count">${studentsInSubject} aluno${studentsInSubject === 1 ? '' : 's'} matriculado${studentsInSubject === 1 ? '' : 's'}</div>
           </div>
         </div>
         <button class="btn-neo btn-outline" style="padding: 4px 8px; font-size: 0.8rem; color: var(--kumon-red);" onclick="confirmDeleteSubject('${sub.id}', '${sub.name}')" title="Remover Matéria">
@@ -1628,7 +1641,10 @@ async function saveSubject(e) {
 }
 
 async function confirmDeleteSubject(subjectDocId, subjectName) {
-  const inUse = State.students.some(s => (s.subjects || []).includes(subjectName));
+  const subClean = (subjectName || '').trim().toLowerCase();
+  const inUse = State.students.some(s => 
+    (s.subjects || []).some(sub => (sub || '').trim().toLowerCase() === subClean)
+  );
   if (inUse) {
     alert(`A matéria "${subjectName}" não pode ser removida pois há alunos matriculados nela.`);
     return;
@@ -2037,6 +2053,19 @@ function switchTab(tabId) {
   const pane = document.getElementById(tabId);
   if (btn) btn.classList.add('active');
   if (pane) pane.classList.add('active');
+
+  // Atualiza os dados da aba selecionada
+  if (tabId === 'tab-alunos') {
+    renderStudentsList();
+  } else if (tabId === 'tab-materias') {
+    renderSubjects();
+  } else if (tabId === 'tab-historico') {
+    renderHistoryTable();
+  } else if (tabId === 'tab-totem') {
+    renderLiveStudents();
+  } else if (tabId === 'tab-carteirinha') {
+    updateCardStudentSelect();
+  }
 
   // Pausa câmera ao sair da aba do totem para economizar bateria
   if (tabId !== 'tab-totem' && State.isCameraActive) {
