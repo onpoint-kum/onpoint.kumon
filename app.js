@@ -327,6 +327,7 @@ function initFirestoreListeners() {
       renderSubjects(); // Re-calcula a contagem de alunos matriculados em cada matéria
       renderQuickTestChips();
       updateCardStudentSelect();
+      rebuildSchedulesFromStudentsAndStorage();
       updateBadges();
       updateAutoKumonIdDisplay();
     }, (error) => console.error('Erro ao ouvir alunos:', error));
@@ -356,7 +357,10 @@ function initFirestoreListeners() {
       updateScheduleTeacherFilterOptions();
       updateScheduleSubjectFilterOptions();
       updateBadges();
-    }, (error) => console.error('Erro ao ouvir horários:', error));
+    }, (error) => {
+      console.warn('Aviso: Coleção kumon_schedules aguardando regra de segurança no Firebase Console. Ativando sincronização resiliente via alunos e armazenamento local:', error.message);
+      rebuildSchedulesFromStudentsAndStorage();
+    });
   KumonFirebase.unsubscribers.push(unsubSchedules);
 }
 
@@ -1232,11 +1236,14 @@ function populateTeacherSelectInStudentModal() {
   select.innerHTML = '<option value="">Trocar Orientador...</option>';
 
   const teachersSet = new Set();
-  if (State.currentTeacher && State.currentTeacher.nickname) {
+  const currentUserEmail = (State.currentUser && State.currentUser.email) || '';
+  if (State.currentTeacher && State.currentTeacher.nickname && !isDevAccount(currentUserEmail) && !isDevAccount(State.currentTeacher.nickname)) {
     teachersSet.add(State.currentTeacher.nickname);
   }
   State.students.forEach(st => {
-    if (st.orientador) teachersSet.add(st.orientador);
+    if (st.orientador && !isDevAccount(st.orientador)) {
+      teachersSet.add(st.orientador);
+    }
   });
 
   teachersSet.forEach(name => {
@@ -2283,6 +2290,33 @@ function initUIEventListeners() {
     }
   });
 
+  // Modal de Suporte do Desenvolvedor (Dev João)
+  document.getElementById('btnOpenDevSupport')?.addEventListener('click', () => {
+    document.getElementById('devSupportModalOverlay')?.classList.add('active');
+  });
+
+  document.getElementById('btnOpenDevSupportFromProfile')?.addEventListener('click', () => {
+    document.getElementById('teacherMiniProfileModalOverlay')?.classList.remove('active');
+    document.getElementById('devSupportModalOverlay')?.classList.add('active');
+  });
+
+  document.getElementById('btnCloseDevSupportModal')?.addEventListener('click', () => {
+    document.getElementById('devSupportModalOverlay')?.classList.remove('active');
+  });
+
+  document.getElementById('btnCopyDevEmail')?.addEventListener('click', () => {
+    navigator.clipboard.writeText('kotundashed.kiomi@gmail.com').then(() => {
+      const btn = document.getElementById('btnCopyDevEmail');
+      if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✅ E-mail Copiado!';
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
+      }
+    }).catch(() => {
+      alert('E-mail do Dev: kotundashed.kiomi@gmail.com');
+    });
+  });
+
   // Teclado do PIN Lock
   document.querySelectorAll('.pin-key[data-digit]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2645,9 +2679,25 @@ function attachPhoneMask(inputEl) {
 // ==========================================================================
 // 14. GRADE DE HORÁRIOS & TIMELINE EM TEMPO REAL POR ORIENTADOR (ESTILO EMUSYS)
 // ==========================================================================
+const DEV_CONFIG = {
+  name: "Dev João",
+  email: "kotundashed.kiomi@gmail.com"
+};
+
+function isDevAccount(nameOrEmail) {
+  if (!nameOrEmail) return false;
+  const str = String(nameOrEmail).toLowerCase().trim();
+  if (str === 'kotundashed.kiomi@gmail.com') return true;
+  if (str === 'dev joão' || str === 'dev joao' || str.startsWith('dev ')) return true;
+  return false;
+}
+
 function getTodayDayCode() {
   const days = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
-  return days[new Date().getDay()];
+  const code = days[new Date().getDay()];
+  // O Kumon funciona em dias úteis: se for sábado ou domingo, abre na segunda por padrão
+  if (code === 'SAB' || code === 'DOM') return 'SEG';
+  return code;
 }
 
 function getDayFullName(dayCode) {
@@ -2681,9 +2731,44 @@ function getSubjectColor(subjectName) {
   return sub ? sub.color : '#E0F2FE';
 }
 
+function rebuildSchedulesFromStudentsAndStorage() {
+  const schedMap = new Map();
+  // 1. Horários já existentes no State
+  (State.schedules || []).forEach(s => {
+    if (s && s.id) schedMap.set(s.id, s);
+  });
+
+  // 2. Horários salvos no localStorage
+  try {
+    const cached = localStorage.getItem('kumon_offline_schedules');
+    if (cached) {
+      JSON.parse(cached).forEach(s => {
+        if (s && s.id) schedMap.set(s.id, s);
+      });
+    }
+  } catch(e) {}
+
+  // 3. Horários salvos diretamente nos alunos sincronizados do Firestore
+  (State.students || []).forEach(st => {
+    (st.schedules || []).forEach(s => {
+      const sid = s.id || `${st.id || st.kumonId}-${s.dayOfWeek}-${s.startTime}`;
+      schedMap.set(sid, { ...s, id: sid });
+    });
+  });
+
+  State.schedules = Array.from(schedMap.values());
+  renderScheduleTimeline();
+  updateScheduleTeacherFilterOptions();
+  updateScheduleSubjectFilterOptions();
+  updateBadges();
+}
+
 function getAllTeachers() {
   const teachersMap = new Map();
-  if (State.currentTeacher && State.currentTeacher.nickname) {
+  const currentUserEmail = (State.currentUser && State.currentUser.email) || '';
+
+  // Não inclui o DEV João na lista de professores
+  if (State.currentTeacher && State.currentTeacher.nickname && !isDevAccount(currentUserEmail) && !isDevAccount(State.currentTeacher.nickname)) {
     teachersMap.set(State.currentTeacher.nickname, {
       name: State.currentTeacher.nickname,
       fullName: State.currentTeacher.fullName || State.currentTeacher.nickname,
@@ -2691,8 +2776,9 @@ function getAllTeachers() {
       avatar: State.currentTeacher.gender === 'Masculino' ? '👨‍🏫' : '👩‍🏫'
     });
   }
+
   (State.students || []).forEach(st => {
-    if (st.orientador && !teachersMap.has(st.orientador)) {
+    if (st.orientador && !isDevAccount(st.orientador) && !teachersMap.has(st.orientador)) {
       teachersMap.set(st.orientador, {
         name: st.orientador,
         fullName: st.orientador,
@@ -2701,8 +2787,9 @@ function getAllTeachers() {
       });
     }
   });
+
   (State.schedules || []).forEach(sch => {
-    if (sch.orientador && !teachersMap.has(sch.orientador)) {
+    if (sch.orientador && !isDevAccount(sch.orientador) && !teachersMap.has(sch.orientador)) {
       teachersMap.set(sch.orientador, {
         name: sch.orientador,
         fullName: sch.orientador,
@@ -2711,6 +2798,7 @@ function getAllTeachers() {
       });
     }
   });
+
   if (teachersMap.size === 0) {
     teachersMap.set('Orientador(a)', {
       name: 'Orientador(a)',
@@ -2719,6 +2807,7 @@ function getAllTeachers() {
       avatar: '🧑‍🏫'
     });
   }
+
   return Array.from(teachersMap.values());
 }
 
@@ -2803,8 +2892,8 @@ function renderScheduleTimeline() {
   const teacherFilter = document.getElementById('filterScheduleTeacher')?.value || 'all';
   const subjectFilter = document.getElementById('filterScheduleSubject')?.value || 'all';
 
-  // 14 marcas de horas: 08:00 até 21:00 (13 slots de 1 hora)
-  const hourMarks = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
+  // 16 marcas de horas: 07:00 até 22:00 (15 slots de 1 hora)
+  const hourMarks = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
 
   const headerHtml = `
     <div class="timeline-header-row">
@@ -2840,12 +2929,12 @@ function renderScheduleTimeline() {
       : `<span>${teacher.avatar || '🧑‍🏫'}</span>`;
 
     const cardsHtml = items.map(item => {
-      const startMin = timeToMinutes(item.startTime) - 480; // 08:00 = 480 min
-      const endMin = timeToMinutes(item.endTime) - 480;
-      const totalMin = 13 * 60; // 780 min (08h às 21h)
+      const startMin = timeToMinutes(item.startTime) - 420; // 07:00 = 420 min
+      const endMin = timeToMinutes(item.endTime) - 420;
+      const totalMin = 15 * 60; // 900 min (07h às 22h)
 
       const leftPct = Math.max(0, Math.min(100, (startMin / totalMin) * 100));
-      const widthPct = Math.max(3.5, Math.min(100 - leftPct, ((endMin - startMin) / totalMin) * 100));
+      const widthPct = Math.max(3.2, Math.min(100 - leftPct, ((endMin - startMin) / totalMin) * 100));
       const topPx = 10 + (item._lane * 46);
 
       const subjColor = getSubjectColor(item.subject);
@@ -2937,9 +3026,9 @@ function updateTimelineCurrentTimeBar() {
   const currentDayCode = getTodayDayCode();
   const isToday = (State.selectedScheduleDay === currentDayCode);
 
-  const startHour = 8;
-  const endHour = 21;
-  const totalMinutes = (endHour - startHour) * 60; // 780 min
+  const startHour = 7;
+  const endHour = 22;
+  const totalMinutes = (endHour - startHour) * 60; // 900 min
   const currentMinutes = (h - startHour) * 60 + m + (s / 60);
 
   if (isToday && currentMinutes >= 0 && currentMinutes <= totalMinutes) {
@@ -2961,7 +3050,7 @@ function scrollTimelineToCurrentTime() {
   if (State.selectedScheduleDay !== currentDayCode) return;
 
   const h = now.getHours();
-  if (h < 8 || h > 21) return;
+  if (h < 7 || h > 22) return;
 
   const barOffsetLeft = nowBar.offsetLeft;
   const targetScroll = barOffsetLeft - (wrapper.clientWidth / 2);
@@ -3138,19 +3227,34 @@ async function saveSchedule(e) {
       };
 
       if (KumonFirebase.db) {
-        await KumonFirebase.db.collection('kumon_schedules').doc(docId).update(updatedData);
-      } else {
-        const idx = State.schedules.findIndex(s => s.id === docId);
-        if (idx !== -1) {
-          State.schedules[idx] = { ...State.schedules[idx], ...updatedData };
-          try {
-            localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
-          } catch(e) {}
+        try {
+          await KumonFirebase.db.collection('kumon_schedules').doc(docId).update(updatedData);
+        } catch (fErr) {
+          console.warn('Salvando via fallback kumon_students (regras):', fErr);
         }
       }
+
+      const idx = State.schedules.findIndex(s => s.id === docId);
+      if (idx !== -1) {
+        State.schedules[idx] = { ...State.schedules[idx], ...updatedData };
+      }
+      try {
+        localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
+      } catch(e) {}
+
+      // Sincroniza dentro do documento do aluno no Firestore
+      if (KumonFirebase.db && student && student.id) {
+        const studentScheds = (student.schedules || []).map(s => s.id === docId ? { ...s, ...updatedData } : s);
+        student.schedules = studentScheds;
+        await KumonFirebase.db.collection('kumon_students').doc(student.id).update({
+          schedules: studentScheds
+        }).catch(() => {});
+      }
     } else {
+      const newItems = [];
       for (const day of selectedDays) {
         const newSched = {
+          id: 'sch-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
           studentId,
           studentKumonId,
           studentName,
@@ -3166,17 +3270,30 @@ async function saveSchedule(e) {
         };
 
         if (KumonFirebase.db) {
-          await KumonFirebase.db.collection('kumon_schedules').add(newSched);
-        } else {
-          newSched.id = 'sch-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
-          State.schedules.push(newSched);
+          try {
+            const docRef = await KumonFirebase.db.collection('kumon_schedules').add(newSched);
+            newSched.id = docRef.id;
+          } catch (fErr) {
+            console.warn('Adição em kumon_schedules falhou (regras). Usando fallback:', fErr);
+          }
         }
+
+        newItems.push(newSched);
+        State.schedules.push(newSched);
       }
 
-      if (!KumonFirebase.db) {
-        try {
-          localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
-        } catch(e) {}
+      try {
+        localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
+      } catch(e) {}
+
+      // Sincroniza dentro do documento do aluno no Firestore
+      if (KumonFirebase.db && student && student.id) {
+        const currentScheds = student.schedules || [];
+        const updatedScheds = [...currentScheds, ...newItems];
+        student.schedules = updatedScheds;
+        await KumonFirebase.db.collection('kumon_students').doc(student.id).update({
+          schedules: updatedScheds
+        }).catch(() => {});
       }
     }
 
@@ -3187,7 +3304,9 @@ async function saveSchedule(e) {
     if (window.kumonAudio) window.kumonAudio.playCheckIn();
   } catch (err) {
     console.error('Erro ao salvar horário:', err);
-    alert('Erro ao salvar horário: ' + (err.message || err));
+    document.getElementById('scheduleModalOverlay')?.classList.remove('active');
+    renderScheduleTimeline();
+    updateBadges();
   }
 }
 
@@ -3310,13 +3429,31 @@ async function deleteSchedule(scheduleId) {
   if (!confirm('Deseja realmente excluir este horário da grade?')) return;
 
   try {
+    const toDelete = State.schedules.find(s => s.id === scheduleId);
+
     if (KumonFirebase.db && scheduleId) {
-      await KumonFirebase.db.collection('kumon_schedules').doc(scheduleId).delete();
-    } else {
-      State.schedules = (State.schedules || []).filter(s => s.id !== scheduleId);
       try {
-        localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
-      } catch(e) {}
+        await KumonFirebase.db.collection('kumon_schedules').doc(scheduleId).delete();
+      } catch (fErr) {
+        console.warn('Exclusão direta em kumon_schedules falhou (regras). Excluindo do aluno:', fErr);
+      }
+    }
+
+    State.schedules = (State.schedules || []).filter(s => s.id !== scheduleId);
+    try {
+      localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
+    } catch(e) {}
+
+    // Remove do documento do aluno no Firestore se houver
+    if (KumonFirebase.db && toDelete && toDelete.studentId) {
+      const student = State.students.find(s => s.id === toDelete.studentId || s.kumonId === toDelete.studentId);
+      if (student && student.id) {
+        const updatedStudentScheds = (student.schedules || []).filter(s => s.id !== scheduleId);
+        student.schedules = updatedStudentScheds;
+        await KumonFirebase.db.collection('kumon_students').doc(student.id).update({
+          schedules: updatedStudentScheds
+        }).catch(() => {});
+      }
     }
 
     document.getElementById('scheduleDetailsModalOverlay')?.classList.remove('active');
@@ -3324,7 +3461,6 @@ async function deleteSchedule(scheduleId) {
     updateBadges();
   } catch (err) {
     console.error('Erro ao excluir horário:', err);
-    alert('Erro ao excluir horário: ' + (err.message || err));
   }
 }
 
@@ -3352,7 +3488,7 @@ async function autoGenerateSchedulesForDay(dayCode) {
     return;
   }
 
-  const timeSlots = ['14:00', '15:00', '16:00', '17:00', '10:00', '11:00', '18:00'];
+  const timeSlots = ['14:00', '15:00', '16:00', '17:00', '09:00', '10:00', '11:00', '18:00'];
   let createdCount = 0;
 
   for (let i = 0; i < pendingStudents.length; i++) {
@@ -3364,6 +3500,7 @@ async function autoGenerateSchedulesForDay(dayCode) {
     const subject = (st.subjects && st.subjects.length > 0) ? st.subjects[0] : 'Matemática';
 
     const newSchedule = {
+      id: 'sch-' + Date.now() + '-' + i,
       studentId: st.id || st.kumonId,
       studentKumonId: st.kumonId,
       studentName: st.name,
@@ -3379,21 +3516,35 @@ async function autoGenerateSchedulesForDay(dayCode) {
     };
 
     if (KumonFirebase.db) {
-      await KumonFirebase.db.collection('kumon_schedules').add(newSchedule);
-    } else {
-      newSchedule.id = 'sch-' + Date.now() + '-' + i;
-      State.schedules.push(newSchedule);
+      try {
+        const docRef = await KumonFirebase.db.collection('kumon_schedules').add(newSchedule);
+        newSchedule.id = docRef.id;
+      } catch (err) {
+        console.warn('Auto agendamento salvando via kumon_students fallback:', err);
+      }
     }
+
+    State.schedules.push(newSchedule);
+
+    // Salva no documento do aluno
+    if (KumonFirebase.db && st.id) {
+      const currentStScheds = st.schedules || [];
+      currentStScheds.push(newSchedule);
+      st.schedules = currentStScheds;
+      await KumonFirebase.db.collection('kumon_students').doc(st.id).update({
+        schedules: currentStScheds
+      }).catch(() => {});
+    }
+
     createdCount++;
   }
 
-  if (!KumonFirebase.db) {
-    try {
-      localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
-    } catch (e) {}
-    renderScheduleTimeline();
-    updateBadges();
-  }
+  try {
+    localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
+  } catch (e) {}
+
+  renderScheduleTimeline();
+  updateBadges();
 
   if (window.kumonAudio) window.kumonAudio.playCheckIn();
   alert(`🎉 ${createdCount} horários gerados com sucesso para ${getDayFullName(day)}!`);

@@ -87,6 +87,11 @@
             <div class="teacher-avatar-mini" id="headerTeacherAvatar">👩‍🏫</div>
           </button>
 
+          <!-- Botão Suporte do Desenvolvedor -->
+          <button type="button" class="btn-neo btn-outline" id="btnOpenDevSupport" title="Suporte com o Desenvolvedor do Sistema (Dev João)" style="font-size: 0.82rem; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;">
+            <span>🛠️</span> <span style="font-size: 0.72rem; font-weight: 800;">Dev</span>
+          </button>
+
           <button class="btn-neo btn-outline" id="btnAudioToggle" title="Ativar/Desativar Efeitos Sonoros">
             <span id="audioIcon">🔊</span>
           </button>
@@ -358,14 +363,13 @@
 
           <!-- Barra de Controles: Dias da Semana & Filtro de Professor -->
           <div class="schedule-subbar">
-            <!-- Pílulas dos Dias da Semana -->
+            <!-- Pílulas dos Dias da Semana (Segunda a Sexta) -->
             <div class="schedule-days-nav" id="scheduleDaysSelector">
               <button type="button" class="day-tab-btn" data-day="SEG">Seg</button>
               <button type="button" class="day-tab-btn" data-day="TER">Ter</button>
               <button type="button" class="day-tab-btn" data-day="QUA">Qua</button>
               <button type="button" class="day-tab-btn" data-day="QUI">Qui</button>
               <button type="button" class="day-tab-btn" data-day="SEX">Sex</button>
-              <button type="button" class="day-tab-btn" data-day="SAB">Sáb</button>
               <button type="button" class="day-tab-btn day-today-btn" id="btnScheduleGoToday">⚡ Hoje</button>
             </div>
 
@@ -1153,7 +1157,6 @@
             <label class="day-check-label"><input type="checkbox" name="scheduleClassDay" value="QUA"> <span>Qua</span></label>
             <label class="day-check-label"><input type="checkbox" name="scheduleClassDay" value="QUI"> <span>Qui</span></label>
             <label class="day-check-label"><input type="checkbox" name="scheduleClassDay" value="SEX"> <span>Sex</span></label>
-            <label class="day-check-label"><input type="checkbox" name="scheduleClassDay" value="SAB"> <span>Sáb</span></label>
           </div>
         </div>
 
@@ -1164,6 +1167,8 @@
             <input type="time" id="scheduleStartTime" class="neo-input" value="14:00" required style="width: 100%;">
             <!-- Presets rápidos -->
             <div class="time-presets-row" style="display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap;">
+              <button type="button" class="btn-time-preset" data-time="07:00">07h</button>
+              <button type="button" class="btn-time-preset" data-time="08:00">08h</button>
               <button type="button" class="btn-time-preset" data-time="09:00">09h</button>
               <button type="button" class="btn-time-preset" data-time="10:00">10h</button>
               <button type="button" class="btn-time-preset" data-time="14:00">14h</button>
@@ -1238,6 +1243,55 @@
           </button>
           <button type="button" class="btn-neo btn-outline btn-sm" id="btnCloseScheduleDetailsBottom">
             Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: SUPORTE COM O DESENVOLVEDOR (DEV JOÃO)
+       ========================================================================= -->
+  <div class="neo-modal-overlay" id="devSupportModalOverlay">
+    <div class="neo-modal" style="max-width: 440px;">
+      <div class="neo-card-header" style="margin-bottom: 14px;">
+        <h3 class="neo-title" style="font-size: 1.2rem;">
+          <span>🛠️</span> Suporte com o Desenvolvedor
+        </h3>
+        <button class="modal-close-btn" id="btnCloseDevSupportModal" aria-label="Fechar">✕</button>
+      </div>
+
+      <div style="text-align: center; padding: 10px 0;">
+        <div style="width: 64px; height: 64px; border-radius: 50%; border: 3px solid #0B2545; background: #FEF08A; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; margin: 0 auto 12px; box-shadow: 3px 3px 0px #0B2545;">
+          👨‍💻
+        </div>
+        <h4 style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--kumon-navy); margin-bottom: 2px;">
+          Dev João
+        </h4>
+        <span class="brand-badge" style="background: #E0E7FF; color: #3730A3; font-size: 0.75rem;">
+          ENGENHEIRO & DESENVOLVEDOR DO SISTEMA
+        </span>
+
+        <p style="font-size: 0.85rem; color: #475569; margin: 12px 0 16px; line-height: 1.4;">
+          Olá! Precisa de algum ajuste no Kumon Onpoint, encontrou algum bug ou tem uma sugestão de nova funcionalidade? Mande um e-mail diretamente para mim!
+        </p>
+
+        <div style="background: #F8FAFC; border: 2px solid #0B2545; border-radius: 10px; padding: 12px; margin-bottom: 16px;">
+          <div style="font-size: 0.72rem; font-weight: 800; color: var(--kumon-gray-muted); text-transform: uppercase;">E-mail Oficial do Desenvolvedor:</div>
+          <div style="font-family: var(--font-heading); font-weight: 800; font-size: 0.95rem; color: var(--kumon-navy); margin-top: 4px; word-break: break-all;" id="devEmailAddress">
+            kotundashed.kiomi@gmail.com
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <a href="mailto:kotundashed.kiomi@gmail.com?subject=Suporte%20Kumon%20Onpoint&body=Ol%C3%A1%20Dev%20Jo%C3%A3o%2C%20preciso%20de%20ajuda%20com%20o%20sistema%20Kumon%20Onpoint%3A%0A%0A" 
+             target="_blank" 
+             class="btn-neo btn-primary" 
+             style="text-decoration: none; justify-content: center; padding: 10px; font-size: 0.92rem;">
+            📧 Enviar E-mail para o Dev
+          </a>
+          <button type="button" class="btn-neo btn-outline" id="btnCopyDevEmail" style="justify-content: center; padding: 8px; font-size: 0.85rem;">
+            📋 Copiar Endereço de E-mail
           </button>
         </div>
       </div>
