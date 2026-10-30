@@ -1117,6 +1117,7 @@ body {
   border-radius: var(--radius-md);
   padding: 12px;
   display: inline-flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   box-shadow: var(--shadow-sm);
@@ -1127,11 +1128,20 @@ body {
 
 .card-qr-box canvas,
 .card-qr-box img {
-  display: block !important;
   width: 140px !important;
   height: 140px !important;
   max-width: 100% !important;
   margin: 0 auto !important;
+}
+
+/* Oculta o canvas assim que a imagem foi gerada com sucesso pelo QRCode.js */
+.card-qr-box:has(img[src^="data:image"]) canvas {
+  display: none !important;
+}
+
+.card-qr-box img:not([src]),
+.card-qr-box img[src=""] {
+  display: none !important;
 }
 
 .card-footer-strip {
@@ -1760,7 +1770,8 @@ body {
   .card-qr-box img {
     width: 130px !important;
     height: 130px !important;
-    display: block !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
   }
 
   /* Grids responsivos */

@@ -1,6 +1,6 @@
 {
-  "version": "1.6.0",
-  "build": 12,
+  "version": "1.7.0",
+  "build": 13,
   "appName": "Kumon Onpoint",
-  "releaseName": "Novo Favicon Oficial & Ícone do App com Suporte a Temas Dinâmicos (Material You)"
+  "releaseName": "Máscara automática de telefone e correção definitiva da duplicação de QR Code"
 }

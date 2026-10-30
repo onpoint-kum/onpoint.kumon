@@ -779,14 +779,16 @@ function renderStudentCard(kumonId) {
         correctLevel: QRCode.CorrectLevel.H
       });
 
-      // Garante que a imagem ou canvas gerado fique visível em dispositivos móveis
+      // Garante que apenas um elemento (img ou canvas) exista no container da carteirinha
       setTimeout(() => {
         const img = qrContainer.querySelector('img');
         const cvs = qrContainer.querySelector('canvas');
-        if (img && img.src && img.src.length > 50) {
+        if (img && img.src && (img.src.startsWith('data:image') || img.src.length > 50)) {
+          if (cvs) cvs.remove();
           img.style.display = 'block';
         } else if (cvs) {
           cvs.style.display = 'block';
+          if (img) img.remove();
         }
       }, 50);
     } catch (err) {
@@ -847,7 +849,8 @@ function printAllStudentCardsBatch() {
     container.appendChild(cardEl);
 
     // Gera o QR Code para este aluno no lote
-    new QRCode(document.getElementById(qrDivId), {
+    const qrDiv = document.getElementById(qrDivId);
+    new QRCode(qrDiv, {
       text: st.kumonId,
       width: 120,
       height: 120,
@@ -855,6 +858,20 @@ function printAllStudentCardsBatch() {
       colorLight: "#ffffff",
       correctLevel: QRCode.CorrectLevel.M
     });
+
+    setTimeout(() => {
+      if (qrDiv) {
+        const img = qrDiv.querySelector('img');
+        const cvs = qrDiv.querySelector('canvas');
+        if (img && img.src && (img.src.startsWith('data:image') || img.src.length > 50)) {
+          if (cvs) cvs.remove();
+          img.style.display = 'block';
+        } else if (cvs) {
+          cvs.style.display = 'block';
+          if (img) img.remove();
+        }
+      }
+    }, 50);
   });
 
   // Oculta visualização normal temporariamente na impressão e dispara print
@@ -1271,7 +1288,7 @@ function openEditStudentModal(studentDocId) {
   document.getElementById('studentAgeInput').value = student.age || '';
   document.getElementById('studentAvatarSelect').value = student.avatar || (student.isAdult ? '🧑' : '👦');
   document.getElementById('studentParentInput').value = student.parentName || '';
-  document.getElementById('studentPhoneInput').value = student.parentPhone || '';
+  document.getElementById('studentPhoneInput').value = formatBrazilianPhone(student.parentPhone || '');
 
   // Configurações de aluno adulto
   const isAdult = !!student.isAdult;
@@ -2076,6 +2093,10 @@ function initUIEventListeners() {
   document.getElementById('filterStudentDay')?.addEventListener('change', renderStudentsList);
   document.getElementById('filterStudentProfile')?.addEventListener('change', renderStudentsList);
 
+  // Máscaras automáticas e dinâmicas de telefone (DDD + 9 ou 8 dígitos)
+  attachPhoneMask(document.getElementById('teacherPhone'));
+  attachPhoneMask(document.getElementById('studentPhoneInput'));
+
   // Filtros de histórico
   document.getElementById('filterSearchHistory')?.addEventListener('input', renderHistoryTable);
   document.getElementById('filterSubjectHistory')?.addEventListener('change', renderHistoryTable);
@@ -2227,7 +2248,7 @@ function openTeacherMiniProfileModal() {
   if (nickEl) nickEl.textContent = nickname;
   if (nameEl) nameEl.textContent = fullName;
   if (emailEl) emailEl.textContent = email;
-  if (phoneEl) phoneEl.textContent = phone;
+  if (phoneEl) phoneEl.textContent = formatBrazilianPhone(phone) || '-';
   if (ageGenderEl) ageGenderEl.textContent = ageGenderStr;
 
   modal.classList.add('active');
@@ -2249,7 +2270,7 @@ function openTeacherProfileModal(isFirstTime = false) {
   document.getElementById('teacherFullName').value = (teacher && teacher.fullName) || (user && user.displayName) || '';
   document.getElementById('teacherGender').value = (teacher && teacher.gender) || 'Feminino';
   document.getElementById('teacherAge').value = (teacher && teacher.age) || '';
-  document.getElementById('teacherPhone').value = (teacher && teacher.phone) || '';
+  document.getElementById('teacherPhone').value = formatBrazilianPhone((teacher && teacher.phone) || '');
   
   // Foto de perfil preview e campo oculto
   const photoBase64 = (teacher && teacher.photoBase64) || '';
@@ -2454,7 +2475,42 @@ async function deleteAttendanceRecord(attendanceId) {
   }
 }
 
+// ==========================================================================
+// FORMATAÇÃO E MÁSCARA AUTOMÁTICA DE TELEFONE (PADRÃO BRASIL)
+// ==========================================================================
+function formatBrazilianPhone(value) {
+  if (!value) return '';
+  let digits = String(value).replace(/\D/g, '');
+  if (digits.startsWith('55') && digits.length > 11) {
+    digits = digits.slice(2);
+  }
+  digits = digits.slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) {
+    return `(${digits}`;
+  }
+  if (digits.length <= 6) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  }
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+}
+
+function attachPhoneMask(inputEl) {
+  if (!inputEl) return;
+  inputEl.addEventListener('input', (e) => {
+    const rawVal = e.target.value;
+    const formatted = formatBrazilianPhone(rawVal);
+    if (e.target.value !== formatted) {
+      e.target.value = formatted;
+    }
+  });
+}
+
 // Expõe funções necessárias para cliques inline no HTML
+window.formatBrazilianPhone = formatBrazilianPhone;
 window.openEditStudentModal = openEditStudentModal;
 window.openTeacherMiniProfileModal = openTeacherMiniProfileModal;
 window.viewStudentCard = viewStudentCard;
