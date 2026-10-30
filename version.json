@@ -1,6 +1,6 @@
 {
-  "version": "1.5.0",
-  "build": 9,
+  "version": "1.5.1",
+  "build": 10,
   "appName": "Kumon Onpoint",
-  "releaseName": "Foto de Perfil do Professor, Cards Mobile de Alunos & Barra de Navegação Estável"
+  "releaseName": "Correção de Exibição do QR Code da Carteirinha no Mobile e Responsivo"
 }

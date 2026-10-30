@@ -767,15 +767,32 @@ function renderStudentCard(kumonId) {
 
   // Gera o QR Code oficial com o KumonID
   const qrContainer = document.getElementById('cardQrContainer');
-  qrContainer.innerHTML = '';
-  new QRCode(qrContainer, {
-    text: student.kumonId,
-    width: 140,
-    height: 140,
-    colorDark: "#0B2545",
-    colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.H
-  });
+  if (qrContainer) {
+    qrContainer.innerHTML = '';
+    try {
+      new QRCode(qrContainer, {
+        text: student.kumonId,
+        width: 140,
+        height: 140,
+        colorDark: "#0B2545",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      // Garante que a imagem ou canvas gerado fique visível em dispositivos móveis
+      setTimeout(() => {
+        const img = qrContainer.querySelector('img');
+        const cvs = qrContainer.querySelector('canvas');
+        if (img && img.src && img.src.length > 50) {
+          img.style.display = 'block';
+        } else if (cvs) {
+          cvs.style.display = 'block';
+        }
+      }, 50);
+    } catch (err) {
+      console.error('Erro ao gerar QRCode:', err);
+    }
+  }
 
   updateCardStats(student.kumonId);
 }
