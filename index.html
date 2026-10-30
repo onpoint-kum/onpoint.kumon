@@ -40,6 +40,19 @@
     </div>
   </div>
 
+  <script>
+    // Fail-safe global: garante que a tela de splash NUNCA fique travada
+    setTimeout(function() {
+      var splash = document.getElementById('kumonSplashScreen');
+      if (splash && splash.style.display !== 'none') {
+        splash.classList.add('fade-out');
+        setTimeout(function() {
+          if (splash) splash.style.display = 'none';
+        }, 600);
+      }
+    }, 2800);
+  </script>
+
   <!-- ==========================================================================
        TELA DE LOGIN (QUANDO NÃO AUTENTICADO)
        ========================================================================== -->

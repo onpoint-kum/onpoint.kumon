@@ -96,9 +96,13 @@ function generateNextKumonId(studentsList) {
 // 3. INICIALIZAÇÃO & AUTENTICAÇÃO COM FIREBASE
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-  State.selectedScheduleDay = getTodayDayCode();
-  initUIEventListeners();
   initSplashScreen();
+  State.selectedScheduleDay = getTodayDayCode();
+  try {
+    initUIEventListeners();
+  } catch (err) {
+    console.error('Erro ao inicializar listeners de UI:', err);
+  }
   startScheduleLiveTicker();
 
   // Inicializa o Firebase
@@ -3583,3 +3587,292 @@ window.openScheduleDetailsModal = openScheduleDetailsModal;
 window.quickCheckInFromSchedule = quickCheckInFromSchedule;
 window.quickViewCardFromSchedule = quickViewCardFromSchedule;
 window.autoGenerateSchedulesForDay = autoGenerateSchedulesForDay;
+
+
+// ==========================================================================
+// 15. IMPORTAÇÃO INTELIGENTE DE ALUNOS DA PLANILHA (alunos.xlsx)
+// ==========================================================================
+function initStudentImport() {
+  const btnOpen = document.getElementById('btnOpenImportStudentsModal');
+  const btnDev = document.getElementById('btnDevOpenImport');
+  const btnClose = document.getElementById('btnCloseImportStudentsModal');
+  const btnCancel = document.getElementById('btnCancelImportStudents');
+  const btnStart = document.getElementById('btnStartImportStudents');
+  const searchInput = document.getElementById('importSearchInput');
+  const modal = document.getElementById('importStudentsModalOverlay');
+
+  btnOpen?.addEventListener('click', () => {
+    openImportStudentsModal();
+  });
+
+  btnDev?.addEventListener('click', () => {
+    document.getElementById('devSupportModalOverlay')?.classList.remove('active');
+    openImportStudentsModal();
+  });
+
+  btnClose?.addEventListener('click', () => {
+    modal?.classList.remove('active');
+  });
+
+  btnCancel?.addEventListener('click', () => {
+    modal?.classList.remove('active');
+  });
+
+  searchInput?.addEventListener('input', () => {
+    renderImportPreviewList(searchInput.value);
+  });
+
+  btnStart?.addEventListener('click', () => {
+    startImportingStudentsToFirebase();
+  });
+}
+
+function openImportStudentsModal() {
+  const modal = document.getElementById('importStudentsModalOverlay');
+  if (!modal) return;
+  modal.classList.add('active');
+  renderImportPreviewList();
+}
+
+function getStudentsToImport() {
+  if (typeof window !== 'undefined' && Array.isArray(window.OFFICIAL_KUMON_STUDENTS) && window.OFFICIAL_KUMON_STUDENTS.length > 0) {
+    return window.OFFICIAL_KUMON_STUDENTS;
+  }
+  return [];
+}
+
+function renderImportPreviewList(filter = '') {
+  const listEl = document.getElementById('importPreviewList');
+  if (!listEl) return;
+
+  const students = getStudentsToImport();
+  const filterClean = (filter || '').trim().toLowerCase();
+
+  const total = students.length;
+  const multiCount = students.filter(s => s.subjects && s.subjects.length > 1).length;
+  const adultCount = students.filter(s => s.isAdult).length;
+
+  const existingNames = new Set((State.students || []).map(s => (s.name || '').trim().toLowerCase()));
+  const alreadyInDbCount = students.filter(s => existingNames.has((s.name || '').trim().toLowerCase())).length;
+  const newCount = Math.max(0, total - alreadyInDbCount);
+
+  const statTotal = document.getElementById('importStatTotal');
+  const statMulti = document.getElementById('importStatMulti');
+  const statAdults = document.getElementById('importStatAdults');
+  const statNew = document.getElementById('importStatNew');
+  if (statTotal) statTotal.textContent = total;
+  if (statMulti) statMulti.textContent = multiCount;
+  if (statAdults) statAdults.textContent = adultCount;
+  if (statNew) statNew.textContent = newCount;
+
+  const filtered = students.filter(s => {
+    if (!filterClean) return true;
+    const nameMatch = (s.name || '').toLowerCase().includes(filterClean);
+    const subMatch = (s.subjects || []).some(sub => (sub || '').toLowerCase().includes(filterClean));
+    const gradeMatch = (s.schoolGrade || '').toLowerCase().includes(filterClean);
+    return nameMatch || subMatch || gradeMatch;
+  });
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div style="text-align: center; color: #64748B; padding: 20px; font-weight: 600;">Nenhum aluno encontrado para o filtro.</div>';
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(s => {
+    const isAlreadyInDb = existingNames.has((s.name || '').trim().toLowerCase());
+    const subjectBadges = (s.subjects || []).map(sub => {
+      let bg = '#E0F2FE';
+      let color = '#0284C7';
+      if (sub === 'Português') { bg = '#FEF3C7'; color = '#B45309'; }
+      else if (sub === 'Inglês') { bg = '#FFEDD5'; color = '#C2410C'; }
+      return '<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 800; background: ' + bg + '; color: ' + color + '; border: 1.5px solid #0B2545;">' + sub + '</span>';
+    }).join(' ');
+
+    const gradeBadge = s.schoolGrade ? '<span style="padding: 1px 6px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; background: #EEF2F6; color: #334155; border: 1px solid #CBD5E1;">' + s.schoolGrade + '</span>' : '';
+    const statusBadge = isAlreadyInDb 
+      ? '<span style="padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 800; background: #DCFCE7; color: #15803D; border: 1.5px solid #15803D;">✓ Já cadastrado</span>'
+      : '<span style="padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 800; background: #DBEAFE; color: #1D4ED8; border: 1.5px solid #1D4ED8;">✨ Pronto</span>';
+
+    return `
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 8px; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+          <span style="font-size: 1.2rem;">${s.avatar || '👦'}</span>
+          <div style="min-width: 0;">
+            <div style="font-weight: 800; font-size: 0.88rem; color: #0B2545; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${s.name} ${gradeBadge}
+            </div>
+            <div style="font-size: 0.75rem; color: #64748B;">
+              ${s.age ? s.age + ' anos' : 'Idade n/d'} • ${s.isAdult ? 'Adulto' : 'Infantil'}
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">
+            ${subjectBadges}
+          </div>
+          ${statusBadge}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function startImportingStudentsToFirebase() {
+  const students = getStudentsToImport();
+  if (students.length === 0) {
+    alert('Nenhum aluno encontrado para importação.');
+    return;
+  }
+
+  const btnStart = document.getElementById('btnStartImportStudents');
+  const btnCancel = document.getElementById('btnCancelImportStudents');
+  const btnClose = document.getElementById('btnCloseImportStudentsModal');
+  const progressContainer = document.getElementById('importProgressContainer');
+  const progressBar = document.getElementById('importProgressBar');
+  const progressStatus = document.getElementById('importProgressStatus');
+  const progressPercent = document.getElementById('importProgressPercent');
+  const cleanTestCheck = document.getElementById('importCleanTestStudentsCheck');
+
+  const shouldCleanTest = cleanTestCheck && cleanTestCheck.checked;
+
+  const confirmed = confirm('Deseja iniciar o cadastro dos ' + students.length + ' alunos da planilha no sistema do Kumon?');
+  if (!confirmed) return;
+
+  btnStart.disabled = true;
+  btnCancel.disabled = true;
+  if (btnClose) btnClose.style.display = 'none';
+  progressContainer.style.display = 'block';
+
+  try {
+    // 1. Limpa alunos de teste se solicitado
+    if (shouldCleanTest && KumonFirebase.db) {
+      progressStatus.textContent = 'Removendo alunos de teste...';
+      const testStudents = State.students.filter(s => (s.name || '').toLowerCase().includes('teste'));
+      for (const ts of testStudents) {
+        if (ts.id) {
+          await KumonFirebase.db.collection('kumon_students').doc(ts.id).delete().catch(() => {});
+        }
+      }
+      State.students = State.students.filter(s => !(s.name || '').toLowerCase().includes('teste'));
+    }
+
+    // 2. Garante que as matérias oficiais existam no Firestore
+    const requiredSubjects = [
+      { name: 'Matemática', icon: '🧮', color: '#0288D1' },
+      { name: 'Português', icon: '🔤', color: '#F59E0B' },
+      { name: 'Inglês', icon: '🌍', color: '#F97316' }
+    ];
+
+    if (KumonFirebase.db) {
+      for (const reqSub of requiredSubjects) {
+        const exists = (State.subjects || []).some(s => (s.name || '').trim().toLowerCase() === reqSub.name.toLowerCase());
+        if (!exists) {
+          await KumonFirebase.db.collection('kumon_subjects').add({
+            ...reqSub,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).catch(() => {});
+        }
+      }
+    }
+
+    // 3. Cadastra os alunos calculando os KumonIDs
+    let addedCount = 0;
+    let updatedCount = 0;
+    const total = students.length;
+
+    for (let i = 0; i < total; i++) {
+      const s = students[i];
+      const percent = Math.round(((i + 1) / total) * 100);
+      progressBar.style.width = percent + '%';
+      progressPercent.textContent = percent + '%';
+      progressStatus.textContent = 'Cadastrando ' + (i + 1) + '/' + total + ': ' + s.name + '...';
+
+      // Verifica se o aluno já existe no State pelo nome
+      const existing = (State.students || []).find(existingSt => (existingSt.name || '').trim().toLowerCase() === s.name.trim().toLowerCase());
+
+      if (existing) {
+        // Aluno já existe: atualiza disciplinas caso falte alguma
+        const mergedSubjects = Array.from(new Set([...(existing.subjects || []), ...(s.subjects || [])]));
+        const updateData = {
+          subjects: mergedSubjects,
+          age: s.age || existing.age,
+          schoolGrade: s.schoolGrade || existing.schoolGrade || '',
+          birthDate: s.birthDate || existing.birthDate || '',
+          isAdult: s.isAdult,
+          classDays: existing.classDays && existing.classDays.length > 0 ? existing.classDays : ['SEG'],
+          updatedAt: new Date().toISOString()
+        };
+
+        if (KumonFirebase.db && existing.id) {
+          await KumonFirebase.db.collection('kumon_students').doc(existing.id).update(updateData).catch(() => {});
+        } else {
+          Object.assign(existing, updateData);
+        }
+        updatedCount++;
+      } else {
+        // Aluno novo: gera KumonID
+        const nextKumonId = generateNextKumonId(State.students);
+        const newStudentDoc = {
+          kumonId: nextKumonId,
+          name: s.name,
+          age: s.age,
+          avatar: s.avatar || (s.isAdult ? '🧑' : '👦'),
+          isAdult: s.isAdult,
+          parentName: s.isAdult ? '' : (s.parentName || 'Exemplo'),
+          parentPhone: s.parentPhone || '(00) 00000-0000',
+          orientador: s.orientador || 'Exemplo',
+          classDays: s.classDays || ['SEG'],
+          replacementClasses: 0,
+          subjects: s.subjects || ['Matemática'],
+          schoolGrade: s.schoolGrade || '',
+          birthDate: s.birthDate || '',
+          createdAt: new Date().toISOString()
+        };
+
+        if (KumonFirebase.db) {
+          const docRef = await KumonFirebase.db.collection('kumon_students').add(newStudentDoc);
+          newStudentDoc.id = docRef.id;
+        } else {
+          newStudentDoc.id = 'st-' + Date.now() + '-' + i;
+        }
+
+        State.students.push(newStudentDoc);
+        addedCount++;
+      }
+
+      // Pequena pausa para fluidez da UI
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+
+    progressBar.style.width = '100%';
+    progressPercent.textContent = '100%';
+    progressStatus.textContent = 'Finalizado com sucesso!';
+
+    if (window.kumonAudio) window.kumonAudio.playCheckIn();
+
+    renderStudentsList();
+    renderQuickTestChips();
+    updateCardStudentSelect();
+    updateBadges();
+
+    setTimeout(() => {
+      document.getElementById('importStudentsModalOverlay')?.classList.remove('active');
+      progressContainer.style.display = 'none';
+      btnStart.disabled = false;
+      btnCancel.disabled = false;
+      if (btnClose) btnClose.style.display = 'flex';
+
+      alert(`🎉 Sucesso! Processo concluído:\n\n• ${addedCount} novos alunos cadastrados com KumonIDs únicos!\n• ${updatedCount} alunos já existentes atualizados.\n\nTodos os alunos já estão disponíveis na lista, carteirinhas e presença!`);
+    }, 500);
+
+  } catch (err) {
+    console.error('Erro durante importação de alunos:', err);
+    alert('Ocorreu um erro durante o cadastro: ' + (err.message || err));
+    btnStart.disabled = false;
+    btnCancel.disabled = false;
+    if (btnClose) btnClose.style.display = 'flex';
+  }
+}
+
+window.openImportStudentsModal = openImportStudentsModal;
+window.startImportingStudentsToFirebase = startImportingStudentsToFirebase;

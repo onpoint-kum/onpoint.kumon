@@ -1,6 +1,6 @@
 {
-  "version": "1.10.0",
-  "build": 16,
+  "version": "1.10.1",
+  "build": 17,
   "appName": "Kumon Onpoint",
-  "releaseName": "Importação oficial dos 87 alunos da planilha alunos.xlsx com cálculo automático de idades, matérias agrupadas e IDs KUM"
+  "releaseName": "Correção de sintaxe, funções completas de importação de alunos e fail-safe de splash screen"
 }
