@@ -956,7 +956,7 @@ function renderStudentsList() {
   if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="8" style="text-align: center; padding: 28px; color: var(--kumon-gray-muted);">
+        <td colspan="6" style="text-align: center; padding: 28px; color: var(--kumon-gray-muted);">
           Nenhum aluno encontrado para os filtros selecionados.
         </td>
       </tr>
@@ -978,58 +978,76 @@ function renderStudentsList() {
       : '<span style="color:var(--kumon-gray-muted); font-size:0.75rem;">Não informado</span>';
 
     const replacements = st.replacementClasses || 0;
-    const replacementBadge = replacements > 0
-      ? `<span class="brand-badge" style="background:#FEF3C7; color:#92400E; border:1px solid #F59E0B; font-weight:800;">🔄 ${replacements} pendente${replacements > 1 ? 's' : ''}</span>`
-      : '<span style="color:var(--kumon-gray-muted); font-size:0.75rem;">Nenhuma</span>';
+    const replacementHtml = replacements > 0
+      ? `<div style="display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+           <span class="brand-badge" style="background:#FEF3C7; color:#92400E; border:1px solid #F59E0B; font-weight:800; font-size:0.74rem;">🔄 ${replacements}</span>
+           <button class="btn-neo btn-outline" style="padding: 2px 6px; font-size: 0.74rem; font-weight: 800;" onclick="quickAddReplacement('${st.id || st.kumonId}')" title="Adicionar +1 aula">+1</button>
+           <button class="btn-neo btn-outline" style="padding: 2px 6px; font-size: 0.74rem; color:#166534; font-weight: 800;" onclick="quickUseReplacement('${st.id || st.kumonId}')" title="Baixar reposição">✓</button>
+         </div>`
+      : `<div style="display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+           <span style="color:var(--kumon-gray-muted); font-size:0.78rem;">0</span>
+           <button class="btn-neo btn-outline" style="padding: 2px 7px; font-size: 0.74rem; font-weight: 800;" onclick="quickAddReplacement('${st.id || st.kumonId}')" title="Adicionar aula de reposição por falta">+1 Repor</button>
+         </div>`;
 
     const orientadorNome = st.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'A Definir');
     const adultBadge = st.isAdult
-      ? `<span class="brand-badge" style="background:#E0E7FF; color:#3730A3; font-size:0.7rem; margin-left:4px;">🧑 ADULTO</span>`
+      ? `<span class="brand-badge" style="background:#E0E7FF; color:#3730A3; font-size:0.68rem; margin-left:4px;">🧑 ADULTO</span>`
       : '';
 
-    const contactHtml = st.isAdult
-      ? `<div style="font-weight:700; white-space:nowrap;">${st.parentPhone || '-'}</div><span class="brand-badge" style="background:#E0E7FF; color:#3730A3; font-size:0.68rem; margin-top:2px;">WhatsApp Aluno</span>`
-      : `<div style="font-weight:700;">${st.parentName || '-'}</div><div style="font-size:0.78rem; color:var(--kumon-gray-muted); white-space:nowrap;">${st.parentPhone || ''}</div>`;
+    let contactHtml = '';
+    if (st.isAdult) {
+      if (st.parentPhone) {
+        contactHtml = `<div style="font-weight:700; white-space:nowrap; font-size:0.85rem;">${st.parentPhone}</div><span class="brand-badge" style="background:#E0E7FF; color:#3730A3; font-size:0.66rem; margin-top:2px;">WhatsApp Aluno</span>`;
+      } else {
+        contactHtml = `<span style="color:var(--kumon-gray-muted); font-size:0.78rem;">Sem telefone</span>`;
+      }
+    } else {
+      if (st.parentPhone || st.parentName) {
+        contactHtml = `<div style="font-weight:700; font-size:0.85rem;">${st.parentName || 'Responsável'}</div><div style="font-size:0.76rem; color:var(--kumon-gray-muted); white-space:nowrap;">${st.parentPhone || ''}</div>`;
+      } else {
+        contactHtml = `<span style="color:var(--kumon-gray-muted); font-size:0.78rem;">Não informado</span>`;
+      }
+    }
 
     return `
       <tr>
-        <td style="font-size: 1.8rem; width: 50px; text-align: center;">${st.avatar || (st.isAdult ? '🧑' : '👦')}</td>
         <td>
-          <div class="student-name-cell" onclick="openStudentProfileModal('${st.id || st.kumonId}')" title="Clique para abrir Perfil e Histórico">
-            <strong style="font-size: 0.95rem; color: var(--kumon-navy);">${st.name}</strong> ${adultBadge}
-            ${st.age ? `<span style="font-size:0.78rem; color:var(--kumon-gray-muted); white-space:nowrap;"> (${st.age} anos)</span>` : ''}
-          </div>
-          <div style="margin-top: 4px;">
-            <span class="brand-badge" style="background:var(--kumon-soft-bg); border:1.5px solid var(--kumon-border); font-size:0.72rem; color:var(--kumon-navy); padding: 2px 8px; white-space: nowrap;">
-              👩‍🏫 ${orientadorNome}
-            </span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 2rem; line-height: 1; flex-shrink: 0; cursor: pointer;" onclick="openStudentProfileModal('${st.id || st.kumonId}')" title="Ver Perfil">
+              ${st.avatar || (st.isAdult ? '🧑' : '👦')}
+            </div>
+            <div style="min-width: 0;">
+              <div class="student-name-cell" onclick="openStudentProfileModal('${st.id || st.kumonId}')" title="Clique para abrir Perfil e Histórico">
+                <strong style="font-size: 0.95rem; color: var(--kumon-navy);">${st.name}</strong> ${adultBadge}
+                ${st.age ? `<span style="font-size:0.75rem; color:var(--kumon-gray-muted); white-space:nowrap;"> (${st.age} anos)</span>` : ''}
+              </div>
+              <div style="display: flex; gap: 5px; align-items: center; margin-top: 3px; flex-wrap: wrap;">
+                <span class="brand-badge" style="background:#E0F2FE; color:var(--kumon-blue-dark); font-weight:800; font-size:0.72rem; padding:1px 6px;">
+                  ${st.kumonId}
+                </span>
+                <span class="brand-badge" style="background:var(--kumon-soft-bg); border:1.5px solid var(--kumon-border); font-size:0.7rem; color:var(--kumon-navy); padding: 1px 7px;">
+                  👩‍🏫 ${orientadorNome}
+                </span>
+              </div>
+            </div>
           </div>
         </td>
-        <td><strong style="color:var(--kumon-blue-dark); font-size: 0.92rem; white-space: nowrap;">${st.kumonId}</strong></td>
         <td><div style="display: flex; flex-wrap: wrap; gap: 3px;">${subjectsBadges || '<span style="color:#94a3b8; font-size:0.8rem;">Nenhuma</span>'}</div></td>
-        <td><div style="display: flex; flex-wrap: wrap; gap: 4px;">${daysBadges}</div></td>
-        <td>
-          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-            ${replacementBadge}
-            <button class="btn-neo btn-outline" style="padding: 2px 8px; font-size: 0.75rem; font-weight: 800; white-space: nowrap;" onclick="quickAddReplacement('${st.id || st.kumonId}')" title="Adicionar +1 aula de reposição por falta">
-              +1 Repor
-            </button>
-            ${replacements > 0 ? `<button class="btn-neo btn-outline" style="padding: 2px 7px; font-size: 0.75rem; color:#166534; font-weight: 800;" onclick="quickUseReplacement('${st.id || st.kumonId}')" title="Concluir aula de reposição">✓</button>` : ''}
-          </div>
-        </td>
+        <td><div style="display: flex; flex-wrap: wrap; gap: 3px;">${daysBadges}</div></td>
+        <td>${replacementHtml}</td>
         <td>${contactHtml}</td>
         <td style="text-align: right; white-space: nowrap;">
-          <div style="display: inline-flex; gap: 4px; align-items: center;">
-            <button class="btn-neo btn-primary" style="padding: 5px 9px; font-size: 0.78rem; font-weight: 800; white-space: nowrap;" onclick="openStudentProfileModal('${st.id || st.kumonId}')" title="Ver Perfil Completo e Histórico de Lições">
+          <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end;">
+            <button class="btn-neo btn-primary" style="padding: 5px 8px; font-size: 0.78rem; font-weight: 800; white-space: nowrap;" onclick="openStudentProfileModal('${st.id || st.kumonId}')" title="Ver Perfil Completo e Histórico de Lições">
               👤 Histórico
             </button>
-            <button class="btn-neo btn-outline" style="padding: 5px 8px; font-size: 0.8rem;" onclick="openEditStudentModal('${st.id || st.kumonId}')" title="Editar Aluno e Orientador">
+            <button class="btn-neo btn-outline" style="padding: 5px 7px; font-size: 0.82rem;" onclick="openEditStudentModal('${st.id || st.kumonId}')" title="Editar Aluno e Orientador">
               ✏️
             </button>
-            <button class="btn-neo btn-outline" style="padding: 5px 8px; font-size: 0.8rem;" onclick="viewStudentCard('${st.kumonId}')" title="Ver Carteirinha">
+            <button class="btn-neo btn-outline" style="padding: 5px 7px; font-size: 0.82rem;" onclick="viewStudentCard('${st.kumonId}')" title="Ver Carteirinha">
               🪪
             </button>
-            <button class="btn-neo btn-outline" style="padding: 5px 8px; font-size: 0.8rem; color: var(--kumon-red);" onclick="confirmDeleteStudent('${st.id || st.kumonId}', '${st.name}')" title="Remover Aluno">
+            <button class="btn-neo btn-outline" style="padding: 5px 7px; font-size: 0.82rem; color: var(--kumon-red);" onclick="confirmDeleteStudent('${st.id || st.kumonId}', '${st.name}')" title="Remover Aluno">
               🗑️
             </button>
           </div>
@@ -1522,8 +1540,8 @@ async function renderStudentDailyHistory(kumonId) {
       hwBadge = `<span class="history-homework-badge" style="background:#FEF3C7; color:#92400E;">⚠️ Fez metade</span>`;
     } else if (hwStatus === 'Não fez') {
       hwBadge = `<span class="history-homework-badge" style="background:#FEE2E2; color:#991B1B;">❌ Não fez</span>`;
-    } else if (hwStatus === 'Não teve') {
-      hwBadge = `<span class="history-homework-badge" style="background:#F1F5F9; color:#475569;">➖ Não teve</span>`;
+    } else if (hwStatus === 'Não trouxe' || hwStatus === 'Não teve') {
+      hwBadge = `<span class="history-homework-badge" style="background:#EDE9FE; color:#5B21B6;">🎒 Não trouxe</span>`;
     } else {
       hwBadge = `<span class="history-homework-badge" style="background:#F8FAFC; color:#64748B;">❓ ${hwStatus}</span>`;
     }
@@ -1709,8 +1727,8 @@ function renderHistoryTable() {
       hwBadge = `<span class="history-homework-badge" style="background:#FEF3C7; color:#92400E;">⚠️ Fez metade</span>`;
     } else if (hwStatus === 'Não fez') {
       hwBadge = `<span class="history-homework-badge" style="background:#FEE2E2; color:#991B1B;">❌ Não fez</span>`;
-    } else if (hwStatus === 'Não teve') {
-      hwBadge = `<span class="history-homework-badge" style="background:#F1F5F9; color:#475569;">➖ Não teve</span>`;
+    } else if (hwStatus === 'Não trouxe' || hwStatus === 'Não teve') {
+      hwBadge = `<span class="history-homework-badge" style="background:#EDE9FE; color:#5B21B6;">🎒 Não trouxe</span>`;
     } else {
       hwBadge = `<span class="history-homework-badge" style="background:#F8FAFC; color:#64748B;">${hwStatus}</span>`;
     }

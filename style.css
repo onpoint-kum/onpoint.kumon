@@ -1903,7 +1903,8 @@ body {
    ESTILOS: POPUP TAREFA DE CASA, PERFIL DO ALUNO E AJUSTES DE TABELA
    ========================================================================== */
 #studentsTable {
-  min-width: 960px;
+  min-width: 760px;
+  width: 100%;
 }
 
 #studentsTable th {
