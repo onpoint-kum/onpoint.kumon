@@ -714,14 +714,146 @@ body {
 }
 
 .feedback-card.empty-state {
-  border-style: dashed;
-  background: rgba(255, 255, 255, 0.7);
+  border: var(--border-thick);
+  background: #FFFFFF;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 380px;
+  color: var(--kumon-navy);
+  box-shadow: var(--shadow-md);
+  padding: 24px 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+.totem-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--kumon-green-soft);
+  color: #166534;
+  border: 1.5px solid #166534;
+  border-radius: var(--radius-full);
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.status-pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #10B981;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulseGreen 1.8s infinite;
+}
+
+@keyframes pulseGreen {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.totem-mini-stats {
+  display: flex;
+  width: 100%;
+  max-width: 280px;
+  background: var(--kumon-soft-bg);
+  border: var(--border-thin);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  gap: 12px;
+}
+
+.totem-stat-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.totem-stat-number {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--kumon-blue-dark);
+  line-height: 1.1;
+}
+
+.totem-stat-label {
+  font-size: 0.72rem;
+  font-weight: 700;
   color: var(--kumon-gray-muted);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Mini Perfil do Professor */
+.teacher-mini-profile-card {
+  background: #FFFFFF;
+}
+
+.teacher-mini-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--kumon-soft-bg);
+  border: var(--border-thick);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.teacher-mini-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--kumon-yellow);
+  border: var(--border-thick);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.9rem;
+  box-shadow: 3px 3px 0px var(--kumon-border);
+  flex-shrink: 0;
+}
+
+.teacher-mini-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.teacher-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.teacher-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px;
+  background: #FAFAFA;
+  border: var(--border-thin);
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+}
+
+.teacher-info-item .info-label {
+  font-weight: 700;
+  color: var(--kumon-gray-muted);
+  font-size: 0.8rem;
+}
+
+.teacher-info-item .info-value {
+  font-weight: 800;
+  color: var(--kumon-navy);
 }
 
 .feedback-card.success-in {
@@ -1616,26 +1748,105 @@ body {
    IMPRESSÃO
    ========================================================================== */
 @media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
   body {
     background: #fff !important;
     padding: 0 !important;
+    margin: 0 !important;
   }
-  .main-header, .nav-container, .main-footer, .scanner-controls, .btn-neo, .no-print, .neo-modal-overlay {
+
+  /* Oculta tudo que não faz parte do crachá do aluno */
+  .main-header,
+  .nav-container,
+  .main-footer,
+  .scanner-controls,
+  .btn-neo,
+  .no-print,
+  .neo-modal-overlay,
+  .auth-hero-container,
+  .kumon-splash-screen,
+  #tab-totem,
+  #tab-presentes,
+  #tab-alunos,
+  #tab-materias,
+  #tab-historico,
+  .neo-card-header,
+  .card-preview-layout > div:last-child {
     display: none !important;
   }
+
   .main-content {
     max-width: 100% !important;
     padding: 0 !important;
+    margin: 0 !important;
   }
-  .kumon-id-card {
+
+  .neo-card {
+    border: none !important;
     box-shadow: none !important;
-    border: 2px solid #000 !important;
-    page-break-inside: avoid;
-    margin-bottom: 20px;
+    padding: 0 !important;
+    background: transparent !important;
+    margin: 0 !important;
   }
+
+  .card-preview-layout {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .kumon-id-card-wrap {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 24px 0 !important;
+  }
+
+  /* Formato perfeito de cracházinho (ideal para colar no boletim escolar) */
+  .kumon-id-card {
+    width: 85mm !important;
+    max-width: 320px !important;
+    box-shadow: none !important;
+    border: 2.5px solid #142232 !important;
+    border-radius: 18px !important;
+    page-break-inside: avoid !important;
+    background: #fff !important;
+    overflow: hidden !important;
+    margin: 0 auto !important;
+  }
+
+  .card-top-bar {
+    background-color: #0099D8 !important;
+    border-bottom: 2.5px solid #142232 !important;
+    padding: 10px 14px !important;
+  }
+
+  /* Garante que o logotipo fique 100% visível tanto em cores quanto em P&B */
+  .card-logo-img-main {
+    filter: brightness(0) invert(1) drop-shadow(0 0 1px #000) drop-shadow(1px 1px 0 #000) !important;
+    -webkit-filter: brightness(0) invert(1) drop-shadow(0 0 1px #000) drop-shadow(1px 1px 0 #000) !important;
+  }
+
+  .card-body-content {
+    padding: 14px 12px !important;
+  }
+
+  .card-footer-strip {
+    background: #F0F7FB !important;
+    border-top: 2px solid #142232 !important;
+    font-size: 0.72rem !important;
+  }
+
+  /* Lote de Carteirinhas em Grade */
   .print-cards-grid {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 16px !important;
+    gap: 20px !important;
+    padding: 10px !important;
   }
 }

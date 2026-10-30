@@ -176,24 +176,33 @@
                 <button type="submit" class="btn-neo btn-warning">Bater Ponto</button>
               </form>
             </div>
-
-            <!-- Atalhos rápidos para teste / simulação -->
-            <div class="quick-test-bar">
-              <strong>💡 Teste rápido (Clique em um aluno para simular leitura):</strong>
-              <div class="quick-test-chips" id="quickTestChips">
-                <!-- Preenchido via JavaScript -->
-              </div>
-            </div>
           </div>
 
-          <!-- Coluna da Direita: Card de Feedback em Tempo Real -->
+          <!-- Coluna da Direita: Card de Feedback em Tempo Real & Status da Unidade -->
           <div class="feedback-container">
             <div class="feedback-card empty-state" id="feedbackCard">
-              <div style="font-size: 3.5rem; margin-bottom: 12px;">👋</div>
-              <h3 style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--kumon-navy); margin-bottom: 6px;">Pronto para registrar!</h3>
-              <p style="font-size: 0.88rem; max-width: 240px; text-align: center;">
-                Aproxime o QR Code do aluno na câmera ou digite o KumonID.
+              <div style="font-size: 3.2rem; margin-bottom: 8px;">👋</div>
+              <h3 style="font-family: var(--font-heading); font-size: 1.3rem; color: var(--kumon-navy); margin-bottom: 6px;">Pronto para registrar!</h3>
+              <p style="font-size: 0.88rem; color: var(--kumon-gray-muted); max-width: 250px; text-align: center; margin-bottom: 16px;">
+                Aproxime o QR Code do aluno na câmera ou digite o KumonID ao lado.
               </p>
+
+              <div class="totem-status-pill">
+                <span class="status-pulse-dot"></span>
+                <span>Totem Ativo • Pronto</span>
+              </div>
+
+              <!-- Mini Resumo da Unidade em Tempo Real -->
+              <div class="totem-mini-stats">
+                <div class="totem-stat-box">
+                  <span class="totem-stat-number" id="totemLiveCount">0</span>
+                  <span class="totem-stat-label">Em Sala Agora</span>
+                </div>
+                <div class="totem-stat-box">
+                  <span class="totem-stat-number" id="totemTodayCount">0</span>
+                  <span class="totem-stat-label">Presenças Hoje</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -430,7 +439,65 @@
   </div>
 
   <!-- ==========================================================================
-       MODAL 1: PERFIL DO PROFESSOR (COM PREFIXO TIO / TIA E ABREVIAÇÃO FOFA)
+       MODAL 1: MINI PERFIL DO PROFESSOR (VISUALIZAÇÃO DE INFORMAÇÕES)
+       ========================================================================== -->
+  <div class="neo-modal-overlay" id="teacherMiniProfileModalOverlay">
+    <div class="neo-modal" style="max-width: 440px;">
+      <div class="neo-card-header" style="margin-bottom: 14px;">
+        <h3 class="neo-title"><span>👩‍🏫</span> Perfil do Professor</h3>
+        <button class="btn-neo btn-outline" id="btnCloseTeacherMiniProfileModal" style="padding: 4px 10px; font-size: 1.1rem;">✕</button>
+      </div>
+
+      <div class="teacher-mini-profile-card">
+        <div class="teacher-mini-header">
+          <div class="teacher-mini-avatar" id="miniProfileAvatar">👩‍🏫</div>
+          <div class="teacher-mini-meta">
+            <h4 id="miniProfileNickname" style="font-family: var(--font-heading); font-size: 1.3rem; color: var(--kumon-navy); margin-bottom: 2px;">Tia Isa</h4>
+            <span class="brand-badge" style="background: var(--kumon-blue); color: #fff; font-size: 0.75rem;">ORIENTADOR(A) KUMON</span>
+          </div>
+        </div>
+
+        <div class="teacher-info-list">
+          <div class="teacher-info-item">
+            <span class="info-label">Nome Completo:</span>
+            <span class="info-value" id="miniProfileFullName">-</span>
+          </div>
+          <div class="teacher-info-item">
+            <span class="info-label">E-mail Google:</span>
+            <span class="info-value" id="miniProfileEmail">-</span>
+          </div>
+          <div class="teacher-info-item">
+            <span class="info-label">Telefone / WhatsApp:</span>
+            <span class="info-value" id="miniProfilePhone">-</span>
+          </div>
+          <div class="teacher-info-item">
+            <span class="info-label">Idade / Sexo:</span>
+            <span class="info-value" id="miniProfileAgeGender">-</span>
+          </div>
+          <div class="teacher-info-item">
+            <span class="info-label">Unidade:</span>
+            <span class="info-value">Kumon Onpoint • Franquia</span>
+          </div>
+          <div class="teacher-info-item">
+            <span class="info-label">PIN de Bloqueio:</span>
+            <span class="info-value" style="letter-spacing: 2px;">•••• (Ativo)</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button type="button" class="btn-neo btn-warning" id="btnEditTeacherProfileFromMini" style="flex: 1;">
+            ✏️ Editar Informações
+          </button>
+          <button type="button" class="btn-neo btn-outline" id="btnLogoutFromMini" style="color: var(--kumon-red);">
+            🚪 Sair
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL 1.5: EDITOR DO PERFIL DO PROFESSOR (CONFIGURAÇÕES E PIN)
        ========================================================================== -->
   <div class="neo-modal-overlay" id="teacherModalOverlay">
     <div class="neo-modal">
@@ -578,6 +645,20 @@
             <label class="form-label" for="studentPhoneInput">WhatsApp do Responsável</label>
             <input type="text" id="studentPhoneInput" class="neo-input" placeholder="(11) 98765-4321" style="width: 100%;">
           </div>
+        </div>
+
+        <!-- Orientador / Professor Responsável -->
+        <div class="form-group">
+          <label class="form-label" for="studentOrientadorInput">Orientador(a) do Aluno *</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="studentOrientadorInput" class="neo-input" required placeholder="Ex: Isabela Molina" style="width: 100%;">
+            <select id="selectRegisteredTeacher" class="neo-input" style="max-width: 160px;">
+              <option value="">Trocar...</option>
+            </select>
+          </div>
+          <span style="font-size: 0.78rem; color: var(--kumon-gray-muted);">
+            Orientador(a) responsável. Professores podem editar e alternar quem atende este aluno.
+          </span>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">

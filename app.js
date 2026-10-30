@@ -415,7 +415,7 @@ async function handleCheckInOut(scannedId) {
       checkOutTime: null,
       durationMinutes: null,
       status: 'in',
-      teacherName: State.currentTeacher ? State.currentTeacher.nickname : 'Orientadora'
+      teacherName: student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'Orientadora')
     };
 
     if (KumonFirebase.db) {
@@ -495,6 +495,10 @@ function renderFeedbackSuccess(student, type, checkInTime, checkOutTime, duratio
     ${timeHtml}
     <div class="motivational-quote">${quote}</div>
   `;
+
+  // Volta automaticamente para a tela de espera após 8 segundos
+  if (State.feedbackResetTimer) clearTimeout(State.feedbackResetTimer);
+  State.feedbackResetTimer = setTimeout(resetFeedbackCardToIdle, 8000);
 }
 
 function renderFeedbackError(message) {
@@ -509,6 +513,44 @@ function renderFeedbackError(message) {
     <p style="font-size: 0.8rem; color: var(--kumon-gray-muted); margin-top: 8px;">
       Verifique se o aluno está cadastrado na aba "Alunos" ou tente novamente.
     </p>
+  `;
+
+  if (State.feedbackResetTimer) clearTimeout(State.feedbackResetTimer);
+  State.feedbackResetTimer = setTimeout(resetFeedbackCardToIdle, 5000);
+}
+
+function resetFeedbackCardToIdle() {
+  const container = document.getElementById('feedbackCard');
+  if (!container) return;
+  container.className = 'feedback-card empty-state';
+  container.style = '';
+
+  const countPresent = State.attendances.filter(a => a.date === getTodayDateString() && a.status === 'in').length;
+  const todayCount = State.attendances.filter(a => a.date === getTodayDateString()).length;
+
+  container.innerHTML = `
+    <div style="font-size: 3.2rem; margin-bottom: 8px;">👋</div>
+    <h3 style="font-family: var(--font-heading); font-size: 1.3rem; color: var(--kumon-navy); margin-bottom: 6px;">Pronto para registrar!</h3>
+    <p style="font-size: 0.88rem; color: var(--kumon-gray-muted); max-width: 250px; text-align: center; margin-bottom: 16px;">
+      Aproxime o QR Code do aluno na câmera ou digite o KumonID ao lado.
+    </p>
+
+    <div class="totem-status-pill">
+      <span class="status-pulse-dot"></span>
+      <span>Totem Ativo • Pronto</span>
+    </div>
+
+    <!-- Mini Resumo da Unidade em Tempo Real -->
+    <div class="totem-mini-stats">
+      <div class="totem-stat-box">
+        <span class="totem-stat-number" id="totemLiveCount">${countPresent}</span>
+        <span class="totem-stat-label">Em Sala Agora</span>
+      </div>
+      <div class="totem-stat-box">
+        <span class="totem-stat-number" id="totemTodayCount">${todayCount}</span>
+        <span class="totem-stat-label">Presenças Hoje</span>
+      </div>
+    </div>
   `;
 }
 
@@ -630,6 +672,13 @@ function renderStudentCard(kumonId) {
   document.getElementById('cardStudentId').textContent = `ID: ${student.kumonId}`;
   document.getElementById('cardAvatar').textContent = student.avatar || '👦';
 
+  // Atualiza orientador no rodapé da carteirinha
+  const cardTeacherLabel = document.getElementById('cardTeacherLabel');
+  if (cardTeacherLabel) {
+    const orientador = student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'ISABELA MOLINA');
+    cardTeacherLabel.textContent = `ORIENTAÇÃO: ${orientador.toUpperCase()}`;
+  }
+
   // Badges das Matérias
   const cardSubjectsEl = document.getElementById('cardSubjects');
   cardSubjectsEl.innerHTML = (student.subjects || []).map(s => {
@@ -695,7 +744,7 @@ function printAllStudentCardsBatch() {
         <div style="font-size: 0.72rem; color: var(--kumon-gray-muted); font-weight: 700;">Totem de Ponto</div>
       </div>
       <div class="card-footer-strip">
-        <span>ORIENTAÇÃO: ${teacherLabel}</span>
+        <span>ORIENTAÇÃO: ${(st.orientador || teacherLabel).toUpperCase()}</span>
         <span>ANO 2026</span>
       </div>
     `;
@@ -824,12 +873,19 @@ function renderStudentsList() {
       return `<span class="subject-badge" style="background:${bg};">${s}</span>`;
     }).join(' ');
 
+    const orientadorNome = st.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'Isabela Molina');
+
     return `
       <tr>
         <td style="font-size: 1.8rem; width: 60px; text-align: center;">${st.avatar || '👦'}</td>
         <td>
           <strong>${st.name}</strong>
           ${st.age ? `<span style="font-size:0.78rem; color:var(--kumon-gray-muted);"> (${st.age} anos)</span>` : ''}
+          <div style="margin-top: 3px;">
+            <span class="brand-badge" style="background:var(--kumon-soft-bg); border:1.5px solid var(--kumon-border); font-size:0.74rem; color:var(--kumon-navy); padding: 1px 7px;">
+              👩‍🏫 Orientador: ${orientadorNome}
+            </span>
+          </div>
         </td>
         <td><strong style="color:var(--kumon-blue-dark);">${st.kumonId}</strong></td>
         <td>${subjectsBadges || '<span style="color:#94a3b8;">Nenhuma</span>'}</td>
@@ -838,10 +894,13 @@ function renderStudentsList() {
           <div style="font-size: 0.78rem; color: var(--kumon-gray-muted);">${st.parentPhone || ''}</div>
         </td>
         <td style="text-align: right; white-space: nowrap;">
+          <button class="btn-neo btn-outline" style="padding: 4px 8px; font-size: 0.8rem;" onclick="openEditStudentModal('${st.id || st.kumonId}')" title="Editar Aluno e Orientador">
+            ✏️
+          </button>
           <button class="btn-neo btn-outline" style="padding: 4px 10px; font-size: 0.8rem;" onclick="viewStudentCard('${st.kumonId}')" title="Ver Carteirinha">
             🪪 Carteirinha
           </button>
-          <button class="btn-neo btn-outline" style="padding: 4px 10px; font-size: 0.8rem; color: var(--kumon-red);" onclick="confirmDeleteStudent('${st.id || st.kumonId}', '${st.name}')" title="Remover Aluno">
+          <button class="btn-neo btn-outline" style="padding: 4px 8px; font-size: 0.8rem; color: var(--kumon-red);" onclick="confirmDeleteStudent('${st.id || st.kumonId}', '${st.name}')" title="Remover Aluno">
             🗑️
           </button>
         </td>
@@ -857,15 +916,81 @@ function updateAutoKumonIdDisplay() {
   }
 }
 
+function populateTeacherSelectInStudentModal() {
+  const select = document.getElementById('selectRegisteredTeacher');
+  if (!select) return;
+  select.innerHTML = '<option value="">Trocar Orientador...</option>';
+
+  const teachersSet = new Set();
+  if (State.currentTeacher && State.currentTeacher.nickname) {
+    teachersSet.add(State.currentTeacher.nickname);
+  }
+  State.students.forEach(st => {
+    if (st.orientador) teachersSet.add(st.orientador);
+  });
+  teachersSet.add('Isabela Molina');
+  teachersSet.add('Tia Isa');
+
+  teachersSet.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
+
+  select.onchange = () => {
+    if (select.value) {
+      document.getElementById('studentOrientadorInput').value = select.value;
+    }
+  };
+}
+
 function openNewStudentModal() {
   document.getElementById('studentFormMode').value = 'create';
+  document.getElementById('studentFormDocId').value = '';
   document.getElementById('modalStudentTitle').innerHTML = '<span>➕</span> Cadastrar Aluno no Kumon';
   document.getElementById('studentNameInput').value = '';
   document.getElementById('studentAgeInput').value = '';
   document.getElementById('studentParentInput').value = '';
   document.getElementById('studentPhoneInput').value = '';
+  
+  const defaultOrientador = State.currentTeacher ? State.currentTeacher.nickname : 'Isabela Molina';
+  document.getElementById('studentOrientadorInput').value = defaultOrientador;
+  populateTeacherSelectInStudentModal();
+
   updateAutoKumonIdDisplay();
   renderStudentFormSubjectChecks();
+  document.getElementById('studentModalOverlay').classList.add('active');
+}
+
+function openEditStudentModal(studentDocId) {
+  const student = State.students.find(s => s.id === studentDocId || s.kumonId === studentDocId);
+  if (!student) return;
+
+  document.getElementById('studentFormMode').value = 'edit';
+  document.getElementById('studentFormDocId').value = student.id || student.kumonId;
+  document.getElementById('modalStudentTitle').innerHTML = '<span>✏️</span> Editar Aluno & Orientador';
+
+  document.getElementById('studentNameInput').value = student.name || '';
+  document.getElementById('studentAgeInput').value = student.age || '';
+  document.getElementById('studentAvatarSelect').value = student.avatar || '👦';
+  document.getElementById('studentParentInput').value = student.parentName || '';
+  document.getElementById('studentPhoneInput').value = student.parentPhone || '';
+
+  const orientador = student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'Isabela Molina');
+  document.getElementById('studentOrientadorInput').value = orientador;
+  populateTeacherSelectInStudentModal();
+
+  const displayEl = document.getElementById('displayAutoKumonId');
+  if (displayEl) displayEl.textContent = student.kumonId;
+
+  // Renderiza matérias e marca as do aluno
+  renderStudentFormSubjectChecks();
+  const checkboxes = document.querySelectorAll('input[name="studentSubjectCheck"]');
+  checkboxes.forEach(cb => {
+    cb.checked = (student.subjects || []).includes(cb.value);
+  });
+
   document.getElementById('studentModalOverlay').classList.add('active');
 }
 
@@ -888,17 +1013,47 @@ function renderStudentFormSubjectChecks() {
 
 async function saveStudent(e) {
   e.preventDefault();
+  const mode = document.getElementById('studentFormMode').value;
+  const docId = document.getElementById('studentFormDocId').value;
   const name = document.getElementById('studentNameInput').value.trim();
   const age = document.getElementById('studentAgeInput').value.trim();
   const avatar = document.getElementById('studentAvatarSelect').value;
   const parentName = document.getElementById('studentParentInput').value.trim();
   const parentPhone = document.getElementById('studentPhoneInput').value.trim();
+  const orientador = document.getElementById('studentOrientadorInput').value.trim() || (State.currentTeacher ? State.currentTeacher.nickname : 'Isabela Molina');
 
   // Matérias selecionadas
   const selectedSubjects = Array.from(document.querySelectorAll('input[name="studentSubjectCheck"]:checked')).map(cb => cb.value);
 
   if (selectedSubjects.length === 0) {
     alert('Por favor, selecione ao menos uma matéria para o aluno!');
+    return;
+  }
+
+  if (mode === 'edit') {
+    const student = State.students.find(s => s.id === docId || s.kumonId === docId);
+    const updatedData = {
+      name,
+      age: age ? parseInt(age, 10) : null,
+      avatar,
+      subjects: selectedSubjects,
+      parentName,
+      parentPhone,
+      orientador,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (KumonFirebase.db && student && student.id) {
+      await KumonFirebase.db.collection('kumon_students').doc(student.id).update(updatedData);
+    } else {
+      if (student) {
+        Object.assign(student, updatedData);
+        renderStudentsList();
+        updateCardStudentSelect();
+      }
+    }
+    document.getElementById('studentModalOverlay').classList.remove('active');
+    alert(`Aluno(a) "${name}" atualizado(a) com sucesso! Orientador(a): ${orientador}`);
     return;
   }
 
@@ -913,6 +1068,7 @@ async function saveStudent(e) {
     subjects: selectedSubjects,
     parentName,
     parentPhone,
+    orientador,
     createdAt: new Date().toISOString()
   };
 
@@ -1142,11 +1298,17 @@ function updateBadges() {
   const badgePresentes = document.getElementById('badgePresentes');
   const badgeTotalAlunos = document.getElementById('badgeTotalAlunos');
   const badgeTotalMaterias = document.getElementById('badgeTotalMaterias');
+  const totemLiveCount = document.getElementById('totemLiveCount');
+  const totemTodayCount = document.getElementById('totemTodayCount');
 
   const countPresent = State.attendances.filter(a => a.date === getTodayDateString() && a.status === 'in').length;
+  const countToday = State.attendances.filter(a => a.date === getTodayDateString()).length;
+
   if (badgePresentes) badgePresentes.textContent = countPresent;
   if (badgeTotalAlunos) badgeTotalAlunos.textContent = State.students.length;
   if (badgeTotalMaterias) badgeTotalMaterias.textContent = State.subjects.length;
+  if (totemLiveCount) totemLiveCount.textContent = countPresent;
+  if (totemTodayCount) totemTodayCount.textContent = countToday;
 }
 
 // ==========================================================================
@@ -1219,10 +1381,24 @@ function initUIEventListeners() {
   // Exportar CSV
   document.getElementById('btnExportCSV')?.addEventListener('click', exportHistoryCSV);
 
-  // Perfil do Professor Modal
+  // Perfil do Professor Modal (Abre Mini Perfil)
   document.getElementById('btnTeacherProfilePill')?.addEventListener('click', () => {
+    openTeacherMiniProfileModal();
+  });
+  document.getElementById('btnCloseTeacherMiniProfileModal')?.addEventListener('click', () => {
+    document.getElementById('teacherMiniProfileModalOverlay')?.classList.remove('active');
+  });
+  document.getElementById('btnEditTeacherProfileFromMini')?.addEventListener('click', () => {
+    document.getElementById('teacherMiniProfileModalOverlay')?.classList.remove('active');
     openTeacherProfileModal(false);
   });
+  document.getElementById('btnLogoutFromMini')?.addEventListener('click', async () => {
+    document.getElementById('teacherMiniProfileModalOverlay')?.classList.remove('active');
+    if (confirm('Deseja realmente sair da sua conta?')) {
+      await KumonFirebase.logout();
+    }
+  });
+
   document.getElementById('btnCloseTeacherModal')?.addEventListener('click', () => {
     document.getElementById('teacherModalOverlay').classList.remove('active');
   });
@@ -1320,6 +1496,38 @@ function switchTab(tabId) {
   if (tabId !== 'tab-totem' && State.isCameraActive) {
     stopCamera();
   }
+}
+
+function openTeacherMiniProfileModal() {
+  const modal = document.getElementById('teacherMiniProfileModalOverlay');
+  if (!modal) return;
+  const user = State.currentUser;
+  const teacher = State.currentTeacher;
+
+  const nickname = (teacher && teacher.nickname) || 'Tia Isa';
+  const fullName = (teacher && teacher.fullName) || (user && user.displayName) || 'Isabela Molina';
+  const email = (user && user.email) || 'unidade@kumon.com';
+  const phone = (teacher && teacher.phone) || 'Não informado';
+  const age = (teacher && teacher.age) ? `${teacher.age} anos` : '';
+  const gender = (teacher && teacher.gender) || 'Feminino';
+  const ageGenderStr = age ? `${age} • ${gender}` : gender;
+  const avatar = gender === 'Masculino' ? '👨‍🏫' : '👩‍🏫';
+
+  const avatarEl = document.getElementById('miniProfileAvatar');
+  const nickEl = document.getElementById('miniProfileNickname');
+  const nameEl = document.getElementById('miniProfileFullName');
+  const emailEl = document.getElementById('miniProfileEmail');
+  const phoneEl = document.getElementById('miniProfilePhone');
+  const ageGenderEl = document.getElementById('miniProfileAgeGender');
+
+  if (avatarEl) avatarEl.textContent = avatar;
+  if (nickEl) nickEl.textContent = nickname;
+  if (nameEl) nameEl.textContent = fullName;
+  if (emailEl) emailEl.textContent = email;
+  if (phoneEl) phoneEl.textContent = phone;
+  if (ageGenderEl) ageGenderEl.textContent = ageGenderStr;
+
+  modal.classList.add('active');
 }
 
 function openTeacherProfileModal(isFirstTime = false) {
@@ -1448,3 +1656,10 @@ function calculateDurationInMinutes(startTimeStr, endTimeStr) {
   if (diff < 0) diff += 24 * 60; // Caso cruze meia noite
   return diff;
 }
+
+// Expõe funções necessárias para cliques inline no HTML
+window.openEditStudentModal = openEditStudentModal;
+window.openTeacherMiniProfileModal = openTeacherMiniProfileModal;
+window.viewStudentCard = viewStudentCard;
+window.confirmDeleteStudent = confirmDeleteStudent;
+window.handleCheckInOut = handleCheckInOut;
