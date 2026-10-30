@@ -1,6 +1,6 @@
 {
-  "version": "1.5.1",
-  "build": 10,
+  "version": "1.5.2",
+  "build": 11,
   "appName": "Kumon Onpoint",
-  "releaseName": "Correção de Exibição do QR Code da Carteirinha no Mobile e Responsivo"
+  "releaseName": "Correção de Validação HTML5 no Perfil do Professor & Atualização da Unidade"
 }
