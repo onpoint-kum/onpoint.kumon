@@ -1734,8 +1734,6 @@ function exportHistoryCSV() {
     const note = (a.homeworkNote || '').replace(/;/g, ',');
     csv += `${a.date};${a.kumonId};"${a.studentName}";"${subs}";${a.checkInTime};${a.checkOutTime || ''};${a.durationMinutes || ''};"${hw}";"${note}";${a.status};"${a.teacherName || ''}"\n`;
   });
-    csv += `"${a.date}";"${a.kumonId}";"${a.studentName}";"${subs}";"${a.checkInTime}";"${a.checkOutTime || ''}";"${a.durationMinutes || ''}";"${a.status}";"${a.teacherName || ''}"\n`;
-  });
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
