@@ -906,19 +906,45 @@ function renderLiveStudents() {
 // ==========================================================================
 function renderStudentsList() {
   const tbody = document.getElementById('studentsTableBody');
-  const filterVal = (document.getElementById('filterStudentList')?.value || '').toLowerCase();
   if (!tbody) return;
 
-  const filtered = State.students.filter(s => 
-    s.name.toLowerCase().includes(filterVal) || 
-    s.kumonId.toLowerCase().includes(filterVal)
-  );
+  const filterVal = (document.getElementById('filterStudentList')?.value || '').toLowerCase();
+  const subjectVal = document.getElementById('filterStudentSubject')?.value || 'all';
+  const dayVal = document.getElementById('filterStudentDay')?.value || 'all';
+  const profileVal = document.getElementById('filterStudentProfile')?.value || 'all';
+
+  const filtered = State.students.filter(s => {
+    // 1. Filtro de Busca (Nome ou KumonID)
+    const matchesSearch = s.name.toLowerCase().includes(filterVal) || s.kumonId.toLowerCase().includes(filterVal);
+    if (!matchesSearch) return false;
+
+    // 2. Filtro por Matéria
+    if (subjectVal !== 'all') {
+      if (!(s.subjects || []).includes(subjectVal)) return false;
+    }
+
+    // 3. Filtro por Dia da Semana
+    if (dayVal !== 'all') {
+      if (!(s.classDays || []).includes(dayVal)) return false;
+    }
+
+    // 4. Filtro por Perfil / Reposições
+    if (profileVal === 'adult') {
+      if (!s.isAdult) return false;
+    } else if (profileVal === 'kids') {
+      if (s.isAdult) return false;
+    } else if (profileVal === 'replacement') {
+      if ((s.replacementClasses || 0) <= 0) return false;
+    }
+
+    return true;
+  });
 
   if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align: center; padding: 24px; color: var(--kumon-gray-muted);">
-          Nenhum aluno encontrado.
+        <td colspan="8" style="text-align: center; padding: 28px; color: var(--kumon-gray-muted);">
+          Nenhum aluno encontrado para os filtros selecionados.
         </td>
       </tr>
     `;
@@ -932,13 +958,29 @@ function renderStudentsList() {
       return `<span class="subject-badge" style="background:${bg};">${s}</span>`;
     }).join(' ');
 
+    const daysBadges = (st.classDays && st.classDays.length > 0)
+      ? st.classDays.map(d => `<span class="brand-badge" style="background:#E0F2FE; color:#0369A1; font-size:0.72rem; padding:1px 6px;">${d}</span>`).join(' ')
+      : '<span style="color:var(--kumon-gray-muted); font-size:0.75rem;">Não informado</span>';
+
+    const replacements = st.replacementClasses || 0;
+    const replacementBadge = replacements > 0
+      ? `<span class="brand-badge" style="background:#FEF3C7; color:#92400E; border:1px solid #F59E0B; font-weight:800;">🔄 ${replacements} pendente${replacements > 1 ? 's' : ''}</span>`
+      : '<span style="color:var(--kumon-gray-muted); font-size:0.75rem;">Nenhuma</span>';
+
     const orientadorNome = st.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'A Definir');
+    const adultBadge = st.isAdult
+      ? `<span class="brand-badge" style="background:#E0E7FF; color:#3730A3; font-size:0.7rem; margin-left:4px;">🧑 ADULTO</span>`
+      : '';
+
+    const contactHtml = st.isAdult
+      ? `<div>${st.parentPhone || '-'}</div><span style="font-size:0.72rem; color:var(--kumon-gray-muted);">Aluno Adulto</span>`
+      : `<div>${st.parentName || '-'}</div><div style="font-size:0.78rem; color:var(--kumon-gray-muted);">${st.parentPhone || ''}</div>`;
 
     return `
       <tr>
-        <td style="font-size: 1.8rem; width: 60px; text-align: center;">${st.avatar || '👦'}</td>
+        <td style="font-size: 1.8rem; width: 50px; text-align: center;">${st.avatar || (st.isAdult ? '🧑' : '👦')}</td>
         <td>
-          <strong>${st.name}</strong>
+          <strong>${st.name}</strong> ${adultBadge}
           ${st.age ? `<span style="font-size:0.78rem; color:var(--kumon-gray-muted);"> (${st.age} anos)</span>` : ''}
           <div style="margin-top: 3px;">
             <span class="brand-badge" style="background:var(--kumon-soft-bg); border:1.5px solid var(--kumon-border); font-size:0.74rem; color:var(--kumon-navy); padding: 1px 7px;">
@@ -948,10 +990,17 @@ function renderStudentsList() {
         </td>
         <td><strong style="color:var(--kumon-blue-dark);">${st.kumonId}</strong></td>
         <td>${subjectsBadges || '<span style="color:#94a3b8;">Nenhuma</span>'}</td>
+        <td>${daysBadges}</td>
         <td>
-          <div>${st.parentName || '-'}</div>
-          <div style="font-size: 0.78rem; color: var(--kumon-gray-muted);">${st.parentPhone || ''}</div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            ${replacementBadge}
+            <button class="btn-neo btn-outline" style="padding: 1px 7px; font-size: 0.75rem; font-weight: 800;" onclick="quickAddReplacement('${st.id || st.kumonId}')" title="Adicionar +1 aula de reposição por falta">
+              +1 Repor
+            </button>
+            ${replacements > 0 ? `<button class="btn-neo btn-outline" style="padding: 1px 7px; font-size: 0.75rem; color:#166534;" onclick="quickUseReplacement('${st.id || st.kumonId}')" title="Concluir aula de reposição">✓</button>` : ''}
+          </div>
         </td>
+        <td>${contactHtml}</td>
         <td style="text-align: right; white-space: nowrap;">
           <button class="btn-neo btn-outline" style="padding: 4px 8px; font-size: 0.8rem;" onclick="openEditStudentModal('${st.id || st.kumonId}')" title="Editar Aluno e Orientador">
             ✏️
@@ -966,6 +1015,43 @@ function renderStudentsList() {
       </tr>
     `;
   }).join('');
+}
+
+async function quickAddReplacement(studentDocId) {
+  const student = State.students.find(s => s.id === studentDocId || s.kumonId === studentDocId);
+  if (!student) return;
+  const current = student.replacementClasses || 0;
+  const updated = current + 1;
+
+  if (KumonFirebase.db && student.id) {
+    await KumonFirebase.db.collection('kumon_students').doc(student.id).update({
+      replacementClasses: updated
+    });
+  } else {
+    student.replacementClasses = updated;
+    renderStudentsList();
+  }
+  if (window.kumonAudio) window.kumonAudio.playAlert();
+  alert(`+1 Aula de reposição adicionada para ${student.name}! Total pendente: ${updated}.`);
+}
+
+async function quickUseReplacement(studentDocId) {
+  const student = State.students.find(s => s.id === studentDocId || s.kumonId === studentDocId);
+  if (!student) return;
+  const current = student.replacementClasses || 0;
+  if (current <= 0) return;
+  const updated = current - 1;
+
+  if (KumonFirebase.db && student.id) {
+    await KumonFirebase.db.collection('kumon_students').doc(student.id).update({
+      replacementClasses: updated
+    });
+  } else {
+    student.replacementClasses = updated;
+    renderStudentsList();
+  }
+  if (window.kumonAudio) window.kumonAudio.playCheckOut();
+  alert(`Aula de reposição concluída para ${student.name}! Restam: ${updated}.`);
 }
 
 function updateAutoKumonIdDisplay() {
@@ -1002,6 +1088,24 @@ function populateTeacherSelectInStudentModal() {
   };
 }
 
+function toggleAdultStudentFields(isAdult) {
+  const groupParent = document.getElementById('groupStudentParent');
+  const parentInput = document.getElementById('studentParentInput');
+  const phoneLabel = document.getElementById('lblStudentPhone');
+  const phoneInput = document.getElementById('studentPhoneInput');
+
+  if (isAdult) {
+    if (groupParent) groupParent.style.display = 'none';
+    if (parentInput) parentInput.value = '';
+    if (phoneLabel) phoneLabel.textContent = 'WhatsApp do Aluno';
+    if (phoneInput) phoneInput.placeholder = '(11) 98765-4321 (Celular do Aluno)';
+  } else {
+    if (groupParent) groupParent.style.display = 'block';
+    if (phoneLabel) phoneLabel.textContent = 'WhatsApp do Responsável';
+    if (phoneInput) phoneInput.placeholder = '(11) 98765-4321';
+  }
+}
+
 function openNewStudentModal() {
   document.getElementById('studentFormMode').value = 'create';
   document.getElementById('studentFormDocId').value = '';
@@ -1011,6 +1115,16 @@ function openNewStudentModal() {
   document.getElementById('studentParentInput').value = '';
   document.getElementById('studentPhoneInput').value = '';
   
+  // Reseta campos de adulto, dias e reposições
+  const isAdultCheck = document.getElementById('studentIsAdultCheck');
+  if (isAdultCheck) isAdultCheck.checked = false;
+  toggleAdultStudentFields(false);
+
+  const repInput = document.getElementById('studentReplacementsInput');
+  if (repInput) repInput.value = '0';
+
+  document.querySelectorAll('input[name="studentClassDay"]').forEach(cb => { cb.checked = false; });
+
   const defaultOrientador = State.currentTeacher ? State.currentTeacher.nickname : '';
   document.getElementById('studentOrientadorInput').value = defaultOrientador;
   populateTeacherSelectInStudentModal();
@@ -1030,9 +1144,26 @@ function openEditStudentModal(studentDocId) {
 
   document.getElementById('studentNameInput').value = student.name || '';
   document.getElementById('studentAgeInput').value = student.age || '';
-  document.getElementById('studentAvatarSelect').value = student.avatar || '👦';
+  document.getElementById('studentAvatarSelect').value = student.avatar || (student.isAdult ? '🧑' : '👦');
   document.getElementById('studentParentInput').value = student.parentName || '';
   document.getElementById('studentPhoneInput').value = student.parentPhone || '';
+
+  // Configurações de aluno adulto
+  const isAdult = !!student.isAdult;
+  const isAdultCheck = document.getElementById('studentIsAdultCheck');
+  if (isAdultCheck) isAdultCheck.checked = isAdult;
+  toggleAdultStudentFields(isAdult);
+
+  // Aulas de reposição
+  const replacements = student.replacementClasses || 0;
+  const repInput = document.getElementById('studentReplacementsInput');
+  if (repInput) repInput.value = replacements;
+
+  // Dias da semana
+  const classDays = student.classDays || [];
+  document.querySelectorAll('input[name="studentClassDay"]').forEach(cb => {
+    cb.checked = classDays.includes(cb.value);
+  });
 
   const orientador = student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : '');
   document.getElementById('studentOrientadorInput').value = orientador;
@@ -1075,9 +1206,18 @@ async function saveStudent(e) {
   const name = document.getElementById('studentNameInput').value.trim();
   const age = document.getElementById('studentAgeInput').value.trim();
   const avatar = document.getElementById('studentAvatarSelect').value;
-  const parentName = document.getElementById('studentParentInput').value.trim();
+  const isAdult = document.getElementById('studentIsAdultCheck')?.checked || false;
+  const parentName = isAdult ? '' : document.getElementById('studentParentInput').value.trim();
   const parentPhone = document.getElementById('studentPhoneInput').value.trim();
   const orientador = document.getElementById('studentOrientadorInput').value.trim() || (State.currentTeacher ? State.currentTeacher.nickname : 'Orientador(a)');
+  const replacementClasses = Math.max(0, parseInt(document.getElementById('studentReplacementsInput')?.value, 10) || 0);
+
+  // Dias de aula
+  const selectedDays = Array.from(document.querySelectorAll('input[name="studentClassDay"]:checked')).map(cb => cb.value);
+  if (selectedDays.length === 0) {
+    alert('Por favor, selecione ao menos um dia da semana em que o aluno faz aula!');
+    return;
+  }
 
   // Matérias selecionadas
   const selectedSubjects = Array.from(document.querySelectorAll('input[name="studentSubjectCheck"]:checked')).map(cb => cb.value);
@@ -1093,6 +1233,9 @@ async function saveStudent(e) {
       name,
       age: age ? parseInt(age, 10) : null,
       avatar,
+      isAdult,
+      classDays: selectedDays,
+      replacementClasses,
       subjects: selectedSubjects,
       parentName,
       parentPhone,
@@ -1122,6 +1265,9 @@ async function saveStudent(e) {
     name,
     age: age ? parseInt(age, 10) : null,
     avatar,
+    isAdult,
+    classDays: selectedDays,
+    replacementClasses,
     subjects: selectedSubjects,
     parentName,
     parentPhone,
@@ -1203,9 +1349,24 @@ function renderSubjects() {
 
 function updateSubjectsFilter() {
   const select = document.getElementById('filterSubjectHistory');
+  if (select) {
+    select.innerHTML = '<option value="all">Todas as Matérias</option>' + 
+      State.subjects.map(s => `<option value="${s.name}">${s.icon || ''} ${s.name}</option>`).join('');
+  }
+  updateStudentSubjectFilterOptions();
+}
+
+function updateStudentSubjectFilterOptions() {
+  const select = document.getElementById('filterStudentSubject');
   if (!select) return;
+  const currentVal = select.value || 'all';
   select.innerHTML = '<option value="all">Todas as Matérias</option>' + 
     State.subjects.map(s => `<option value="${s.name}">${s.icon || ''} ${s.name}</option>`).join('');
+  if (State.subjects.some(s => s.name === currentVal)) {
+    select.value = currentVal;
+  } else {
+    select.value = 'all';
+  }
 }
 
 async function saveSubject(e) {
@@ -1483,6 +1644,26 @@ function initUIEventListeners() {
   });
   document.getElementById('formStudent')?.addEventListener('submit', saveStudent);
 
+  // Checkbox de aluno adulto
+  document.getElementById('studentIsAdultCheck')?.addEventListener('change', (e) => {
+    toggleAdultStudentFields(e.target.checked);
+  });
+
+  // Botões de reposições no modal do aluno
+  document.getElementById('btnIncReplacements')?.addEventListener('click', () => {
+    const input = document.getElementById('studentReplacementsInput');
+    if (input) {
+      input.value = Math.max(0, (parseInt(input.value, 10) || 0) + 1);
+    }
+  });
+
+  document.getElementById('btnDecReplacements')?.addEventListener('click', () => {
+    const input = document.getElementById('studentReplacementsInput');
+    if (input) {
+      input.value = Math.max(0, (parseInt(input.value, 10) || 0) - 1);
+    }
+  });
+
   // Matéria Modal
   document.getElementById('btnOpenNewSubjectModal')?.addEventListener('click', () => {
     document.getElementById('subjectModalOverlay').classList.add('active');
@@ -1495,8 +1676,23 @@ function initUIEventListeners() {
   });
   document.getElementById('formSubject')?.addEventListener('submit', saveSubject);
 
-  // Filtro de alunos em tempo real
+  // Sincronização de cor de matérias (Select <-> Picker Nativo)
+  const colorSelect = document.getElementById('subjectColorInput');
+  const colorPicker = document.getElementById('subjectColorPicker');
+  if (colorSelect && colorPicker) {
+    colorSelect.addEventListener('change', (e) => {
+      colorPicker.value = e.target.value;
+    });
+    colorPicker.addEventListener('input', (e) => {
+      colorSelect.value = e.target.value;
+    });
+  }
+
+  // Filtros de alunos em tempo real (Texto, Matéria, Dia da Semana e Perfil)
   document.getElementById('filterStudentList')?.addEventListener('input', renderStudentsList);
+  document.getElementById('filterStudentSubject')?.addEventListener('change', renderStudentsList);
+  document.getElementById('filterStudentDay')?.addEventListener('change', renderStudentsList);
+  document.getElementById('filterStudentProfile')?.addEventListener('change', renderStudentsList);
 
   // Filtros de histórico
   document.getElementById('filterSearchHistory')?.addEventListener('input', renderHistoryTable);
@@ -1751,3 +1947,5 @@ window.viewStudentCard = viewStudentCard;
 window.confirmDeleteStudent = confirmDeleteStudent;
 window.handleCheckInOut = handleCheckInOut;
 window.deleteAttendanceRecord = deleteAttendanceRecord;
+window.quickAddReplacement = quickAddReplacement;
+window.quickUseReplacement = quickUseReplacement;

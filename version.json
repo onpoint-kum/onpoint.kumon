@@ -1,6 +1,6 @@
 {
-  "version": "1.1.2",
-  "build": 4,
+  "version": "1.2.0",
+  "build": 5,
   "appName": "Kumon Onpoint",
-  "releaseName": "Cooldown Inteligente do Scanner QR & Exclusão de Frequência"
+  "releaseName": "Aluno Adulto, Dias de Aula, Reposições por Faltas, Paleta Expandida & Multi-Filtros"
 }

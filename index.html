@@ -338,8 +338,29 @@
             <button class="btn-neo btn-primary" id="btnOpenNewStudentModal">➕ Cadastrar Novo Aluno</button>
           </div>
 
-          <div style="margin-bottom: 16px;">
-            <input type="text" id="filterStudentList" class="neo-input" placeholder="🔍 Buscar aluno por nome ou KumonID..." style="font-size: 0.95rem; padding: 10px 14px; width: 100%;">
+          <!-- Filtros Rápidos de Alunos -->
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;">
+            <div style="flex: 2; min-width: 200px;">
+              <input type="text" id="filterStudentList" class="neo-input" placeholder="🔍 Buscar aluno por nome ou KumonID..." style="font-size: 0.92rem; padding: 9px 14px; width: 100%;">
+            </div>
+            <select id="filterStudentSubject" class="neo-input" style="flex: 1; min-width: 150px; font-size: 0.88rem; padding: 9px 12px;">
+              <option value="all">Todas as Matérias</option>
+            </select>
+            <select id="filterStudentDay" class="neo-input" style="flex: 1; min-width: 140px; font-size: 0.88rem; padding: 9px 12px;">
+              <option value="all">Todos os Dias</option>
+              <option value="Seg">Segunda-feira</option>
+              <option value="Ter">Terça-feira</option>
+              <option value="Qua">Quarta-feira</option>
+              <option value="Qui">Quinta-feira</option>
+              <option value="Sex">Sexta-feira</option>
+              <option value="Sáb">Sábado</option>
+            </select>
+            <select id="filterStudentProfile" class="neo-input" style="flex: 1; min-width: 150px; font-size: 0.88rem; padding: 9px 12px;">
+              <option value="all">Todos os Perfis</option>
+              <option value="adult">🧑 Apenas Adultos</option>
+              <option value="kids">🧒 Crianças / Jovens</option>
+              <option value="replacement">🔄 Com Reposição Pendente</option>
+            </select>
           </div>
 
           <div class="table-responsive">
@@ -347,10 +368,12 @@
               <thead>
                 <tr>
                   <th>Avatar</th>
-                  <th>Nome Completo</th>
+                  <th>Nome do Aluno</th>
                   <th>KumonID</th>
-                  <th>Disciplinas Vinculadas</th>
-                  <th>Responsável / Telefone</th>
+                  <th>Disciplinas</th>
+                  <th>Dias de Aula</th>
+                  <th>Reposições</th>
+                  <th>Contato</th>
                   <th style="text-align: right;">Ações</th>
                 </tr>
               </thead>
@@ -616,14 +639,25 @@
             <select id="studentAvatarSelect" class="neo-input" style="width: 100%;">
               <option value="👦">👦 Menino 1</option>
               <option value="👧">👧 Menina 1</option>
-              <option value="🧑">🧑 Estudante 1</option>
+              <option value="🧑">🧑 Estudante / Adulto</option>
               <option value="🧒">🧒 Jovem</option>
+              <option value="👨">👨 Homem Adulto</option>
+              <option value="👩">👩 Mulher Adulta</option>
               <option value="👩‍🎓">👩‍🎓 Graduada</option>
               <option value="👨‍🎓">👨‍🎓 Graduado</option>
               <option value="🌟">🌟 Estrela</option>
               <option value="📚">📚 Livros</option>
             </select>
           </div>
+        </div>
+
+        <!-- Opção de Aluno Adulto -->
+        <div style="background: var(--kumon-soft-bg); border: var(--border-thin); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;">
+          <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; cursor: pointer; color: var(--kumon-navy); margin-bottom: 0;">
+            <input type="checkbox" id="studentIsAdultCheck" style="width: 18px; height: 18px; cursor: pointer;">
+            <span>🧑 Aluno Adulto (Maior de 18 anos)</span>
+          </label>
+          <span class="brand-badge" style="background: #E0E7FF; color: #3730A3; font-size: 0.72rem;">DISPENSA RESPONSÁVEL</span>
         </div>
 
         <!-- Vínculo com as matérias adicionadas pelos professores -->
@@ -637,14 +671,47 @@
           </div>
         </div>
 
-        <div class="form-grid-2col">
-          <div class="form-group">
-            <label class="form-label" for="studentParentInput">Nome do Responsável</label>
+        <!-- Dias da semana de aula -->
+        <div class="form-group">
+          <label class="form-label">Dias da Semana que Faz Aula *</label>
+          <div style="font-size: 0.8rem; color: var(--kumon-gray-muted); margin-bottom: 6px;">
+            Selecione os dias em que o aluno frequenta a unidade Kumon:
+          </div>
+          <div class="days-chips-container" id="studentClassDaysContainer" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <label class="day-chip"><input type="checkbox" name="studentClassDay" value="Seg"><span>Segunda</span></label>
+            <label class="day-chip"><input type="checkbox" name="studentClassDay" value="Ter"><span>Terça</span></label>
+            <label class="day-chip"><input type="checkbox" name="studentClassDay" value="Qua"><span>Quarta</span></label>
+            <label class="day-chip"><input type="checkbox" name="studentClassDay" value="Qui"><span>Quinta</span></label>
+            <label class="day-chip"><input type="checkbox" name="studentClassDay" value="Sex"><span>Sexta</span></label>
+            <label class="day-chip"><input type="checkbox" name="studentClassDay" value="Sáb"><span>Sábado</span></label>
+          </div>
+        </div>
+
+        <!-- Dados de Contato / Responsável -->
+        <div class="form-grid-2col" id="groupStudentContact">
+          <div class="form-group" id="groupStudentParent">
+            <label class="form-label" for="studentParentInput" id="lblStudentParent">Nome do Responsável</label>
             <input type="text" id="studentParentInput" class="neo-input" placeholder="Ex: Cláudia Santos" style="width: 100%;">
           </div>
           <div class="form-group">
-            <label class="form-label" for="studentPhoneInput">WhatsApp do Responsável</label>
+            <label class="form-label" for="studentPhoneInput" id="lblStudentPhone">WhatsApp do Responsável</label>
             <input type="text" id="studentPhoneInput" class="neo-input" placeholder="(11) 98765-4321" style="width: 100%;">
+          </div>
+        </div>
+
+        <!-- Aulas de Reposição Pendentes -->
+        <div class="form-group" style="background: #FFFBEB; border: 2px dashed #F59E0B; border-radius: var(--radius-sm); padding: 12px 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="form-label" for="studentReplacementsInput" style="color: #92400E; margin-bottom: 0;">
+              🔄 Aulas de Reposição Pendentes
+            </label>
+            <span style="font-size: 0.75rem; color: #B45309; font-weight: 700;">POR FALTAS / REPOSIÇÃO</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" class="btn-neo btn-outline" id="btnDecReplacements" style="padding: 4px 14px; font-size: 1.1rem; font-weight: 800;">−</button>
+            <input type="number" id="studentReplacementsInput" class="neo-input" min="0" value="0" style="width: 72px; text-align: center; font-size: 1.25rem; font-weight: 800; padding: 6px;">
+            <button type="button" class="btn-neo btn-outline" id="btnIncReplacements" style="padding: 4px 14px; font-size: 1.1rem; font-weight: 800;">+</button>
+            <span style="font-size: 0.82rem; color: #78350F; font-weight: 600;">aulas pendentes para repor</span>
           </div>
         </div>
 
@@ -692,15 +759,31 @@
             <input type="text" id="subjectIconInput" class="neo-input" value="📐" style="width: 100%;">
           </div>
           <div class="form-group">
-            <label class="form-label" for="subjectColorInput">Cor da Etiqueta</label>
-            <select id="subjectColorInput" class="neo-input" style="width: 100%;">
-              <option value="#93C5FD">Azul Céu</option>
-              <option value="#FDE047">Amarelo Brilhante</option>
-              <option value="#C4B5FD">Roxo Suave</option>
-              <option value="#86EFAC">Verde Menta</option>
-              <option value="#FDBA74">Laranja Pastel</option>
-              <option value="#F9A8D4">Rosa Chiclete</option>
-            </select>
+            <label class="form-label" for="subjectColorInput">Cor da Etiqueta (Paleta Kumon & Pop)</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <select id="subjectColorInput" class="neo-input" style="flex: 1;">
+                <option value="#93C5FD">🟦 Azul Céu (Clássico)</option>
+                <option value="#38BDF8">🌊 Azul Kumon / Turquesa</option>
+                <option value="#60A5FA">🔷 Azul Royal Vibrante</option>
+                <option value="#818CF8">🔮 Azul Índigo</option>
+                <option value="#86EFAC">🍃 Verde Menta Suave</option>
+                <option value="#34D399">🌿 Verde Esmeralda</option>
+                <option value="#10B981">🌲 Verde Folha Intenso</option>
+                <option value="#A3E635">🍏 Verde Lima / Neon</option>
+                <option value="#FDE047">⭐ Amarelo Brilhante</option>
+                <option value="#FBBF24">🍯 Âmbar Quente</option>
+                <option value="#FDBA74">🍑 Pêssego Pastel</option>
+                <option value="#FB923C">🍊 Laranja Pop</option>
+                <option value="#F87171">🍓 Coral / Morango</option>
+                <option value="#EF4444">🔴 Vermelho Vivo</option>
+                <option value="#F472B6">🌸 Rosa Chiclete</option>
+                <option value="#EC4899">💖 Pink Cereja</option>
+                <option value="#C4B5FD">💜 Roxo Lavanda</option>
+                <option value="#A855F7">🟣 Roxo Elétrico</option>
+                <option value="#94A3B8">🔘 Cinza Grafite Suave</option>
+              </select>
+              <input type="color" id="subjectColorPicker" value="#93C5FD" style="width: 44px; height: 40px; border: var(--border-thick); border-radius: var(--radius-sm); cursor: pointer; padding: 2px;" title="Escolher cor personalizada">
+            </div>
           </div>
         </div>
 

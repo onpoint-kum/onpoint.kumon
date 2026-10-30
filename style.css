@@ -543,6 +543,36 @@ body {
 .btn-danger { background: var(--kumon-red); color: #fff; }
 .btn-outline { background: #fff; color: var(--kumon-navy); }
 
+/* Chips de Dias da Semana para o Aluno */
+.day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #FFFFFF;
+  border: var(--border-thick);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--kumon-navy);
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 2px 2px 0px var(--kumon-border);
+  transition: all 0.15s ease;
+}
+
+.day-chip:has(input:checked) {
+  background: var(--kumon-blue);
+  color: #FFFFFF;
+  transform: translateY(-2px);
+  box-shadow: 3px 3px 0px var(--kumon-border);
+}
+
+.day-chip input {
+  cursor: pointer;
+  accent-color: var(--kumon-blue-dark);
+}
+
 /* ==========================================================================
    ABA 1: TOTEM DE PONTO / SCANNER
    ========================================================================== */
