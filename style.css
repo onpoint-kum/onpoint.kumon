@@ -1325,7 +1325,8 @@ body {
 /* ==========================================================================
    MODAIS NEO-POP
    ========================================================================== */
-.neo-modal-overlay {
+.neo-modal-overlay,
+.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -1343,7 +1344,8 @@ body {
   transition: opacity 0.2s ease;
 }
 
-.neo-modal-overlay.active {
+.neo-modal-overlay.active,
+.modal-overlay.active {
   opacity: 1;
   pointer-events: auto;
 }

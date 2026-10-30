@@ -1319,9 +1319,9 @@
 
   
   <!-- Modal de Importação de Alunos da Planilha (alunos.xlsx) -->
-  <div class="modal-overlay" id="importStudentsModalOverlay">
-    <div class="neo-card modal-card" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column; padding: 24px;">
-      <div class="modal-header" style="margin-bottom: 12px;">
+  <div class="neo-modal-overlay" id="importStudentsModalOverlay">
+    <div class="neo-modal" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column; padding: 24px;">
+      <div class="neo-card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start;">
         <div>
           <h3 class="neo-title" style="font-size: 1.3rem; display: flex; align-items: center; gap: 8px;">
             <span>📥</span> Importar Alunos (alunos.xlsx)
@@ -1330,7 +1330,7 @@
             Cadastre os 87 alunos da planilha do Kumon de forma automática e organizada.
           </p>
         </div>
-        <button type="button" class="modal-close" id="btnCloseImportStudentsModal" style="width: 36px; height: 36px; font-size: 1.2rem;">&times;</button>
+        <button type="button" class="modal-close-btn" id="btnCloseImportStudentsModal" aria-label="Fechar">✕</button>
       </div>
 
       <!-- Resumo estatístico -->
