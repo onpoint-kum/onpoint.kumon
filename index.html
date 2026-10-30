@@ -114,6 +114,11 @@
           <span class="nav-label">Presentes</span>
           <span class="nav-counter" id="badgePresentes">0</span>
         </button>
+        <button class="nav-btn" data-tab="tab-horarios">
+          <span class="nav-icon">⏱️</span>
+          <span class="nav-label">Horários</span>
+          <span class="nav-counter" id="badgeHorarios" style="display: none;">0</span>
+        </button>
         <button class="nav-btn" data-tab="tab-alunos">
           <span class="nav-icon">👥</span>
           <span class="nav-label">Alunos</span>
@@ -321,6 +326,79 @@
 
           <div class="live-grid" id="liveStudentsGrid">
             <!-- Preenchido via JavaScript -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------------------------
+           ABA: GRADE DE HORÁRIOS & TIMELINE POR ORIENTADOR
+           ------------------------------------------------------------------------ -->
+      <section class="tab-pane" id="tab-horarios">
+        <div class="neo-card schedule-container-card">
+          <!-- Cabeçalho da Grade de Horários -->
+          <div class="schedule-toolbar">
+            <div class="schedule-title-area">
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <h2 class="neo-title" style="margin-bottom: 0;"><span>⏱️</span> Grade de Horários</h2>
+                <span class="live-clock-badge" id="scheduleLiveClock">--:--:--</span>
+                <span class="schedule-day-indicator" id="scheduleSelectedDayLabel">Sexta-feira</span>
+              </div>
+              <p class="neo-subtitle" style="margin-top: 4px;">Timeline em tempo real com indicador de horário ao vivo e divisão por orientador</p>
+            </div>
+
+            <div class="schedule-action-buttons">
+              <button type="button" class="btn-neo btn-warning btn-sm" id="btnAutoGenerateSchedule" title="Gera horários automáticos para alunos cadastrados neste dia da semana">
+                🪄 Sugerir Horários
+              </button>
+              <button type="button" class="btn-neo btn-primary" id="btnOpenNewScheduleModal">
+                <span>+</span> Novo Horário
+              </button>
+            </div>
+          </div>
+
+          <!-- Barra de Controles: Dias da Semana & Filtro de Professor -->
+          <div class="schedule-subbar">
+            <!-- Pílulas dos Dias da Semana -->
+            <div class="schedule-days-nav" id="scheduleDaysSelector">
+              <button type="button" class="day-tab-btn" data-day="SEG">Seg</button>
+              <button type="button" class="day-tab-btn" data-day="TER">Ter</button>
+              <button type="button" class="day-tab-btn" data-day="QUA">Qua</button>
+              <button type="button" class="day-tab-btn" data-day="QUI">Qui</button>
+              <button type="button" class="day-tab-btn" data-day="SEX">Sex</button>
+              <button type="button" class="day-tab-btn" data-day="SAB">Sáb</button>
+              <button type="button" class="day-tab-btn day-today-btn" id="btnScheduleGoToday">⚡ Hoje</button>
+            </div>
+
+            <!-- Filtros de Orientador & Matéria -->
+            <div class="schedule-filters-group">
+              <div class="schedule-filter-item">
+                <label for="filterScheduleTeacher" class="schedule-filter-label">Orientador:</label>
+                <select id="filterScheduleTeacher" class="neo-input schedule-filter-select">
+                  <option value="all">👥 Todos os Orientadores</option>
+                </select>
+              </div>
+              <div class="schedule-filter-item">
+                <label for="filterScheduleSubject" class="schedule-filter-label">Matéria:</label>
+                <select id="filterScheduleSubject" class="neo-input schedule-filter-select">
+                  <option value="all">Todas as Matérias</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quadro Geral da Timeline (Com rolagem horizontal suave) -->
+          <div class="timeline-board-wrapper" id="timelineBoardWrapper">
+            <div class="timeline-board" id="timelineBoard">
+              <!-- Preenchido via renderScheduleTimeline() no app.js -->
+            </div>
+          </div>
+
+          <!-- Legenda de Cores e Dicas Rápidas -->
+          <div class="schedule-footer-legend">
+            <div class="legend-item"><span class="legend-dot" style="background:#22C55E;"></span> <span>Aluno em Sala (Ponto Batido)</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#F59E0B;"></span> <span>Aula de Reposição 🔄</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#0099FF;"></span> <span>Aula Regular Agendada</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#EF4444;"></span> <span>Barra Vermelha = Horário Atual ao Vivo</span></div>
           </div>
         </div>
       </section>
@@ -1017,6 +1095,148 @@
             ✏️ Editar Aluno
           </button>
           <button class="btn-neo btn-primary" id="profBtnCloseBottom" style="font-size: 0.85rem; padding: 6px 14px;">
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: AGENDAR / EDITAR HORÁRIO DE AULA
+       ========================================================================= -->
+  <div class="neo-modal-overlay" id="scheduleModalOverlay">
+    <div class="neo-modal" style="max-width: 520px;">
+      <div class="neo-card-header" style="margin-bottom: 14px;">
+        <h3 class="neo-title" id="modalScheduleTitle" style="font-size: 1.25rem;">
+          <span>📅</span> Agendar Horário de Aula
+        </h3>
+        <button class="modal-close-btn" id="btnCloseScheduleModal" aria-label="Fechar">✕</button>
+      </div>
+
+      <form id="formSchedule" class="neo-form">
+        <input type="hidden" id="scheduleFormMode" value="create">
+        <input type="hidden" id="scheduleDocId" value="">
+
+        <!-- Seleção de Aluno -->
+        <div class="form-group">
+          <label class="form-label" for="scheduleStudentSelect">Aluno *</label>
+          <select id="scheduleStudentSelect" class="neo-input" required style="width: 100%;">
+            <option value="">Selecione um aluno cadastrado...</option>
+          </select>
+        </div>
+
+        <div class="form-grid-2col">
+          <!-- Orientador / Professor -->
+          <div class="form-group">
+            <label class="form-label" for="scheduleTeacherSelect">Orientador(a) *</label>
+            <select id="scheduleTeacherSelect" class="neo-input" required style="width: 100%;">
+              <!-- Preenchido via app.js -->
+            </select>
+          </div>
+
+          <!-- Matéria -->
+          <div class="form-group">
+            <label class="form-label" for="scheduleSubjectSelect">Disciplina / Matéria</label>
+            <select id="scheduleSubjectSelect" class="neo-input" style="width: 100%;">
+              <!-- Preenchido via app.js -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Dias da Semana -->
+        <div class="form-group">
+          <label class="form-label">Dia da Semana *</label>
+          <div class="days-checkbox-grid" style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <label class="day-check-label"><input type="checkbox" name="scheduleClassDay" value="SEG"> <span>Seg</span></label>
+            <label class="day-check-label"><input type="checkbox" name="scheduleClassDay" value="TER"> <span>Ter</span></label>
+            <label class="day-check-label"><input type="checkbox" name="scheduleClassDay" value="QUA"> <span>Qua</span></label>
+            <label class="day-check-label"><input type="checkbox" name="scheduleClassDay" value="QUI"> <span>Qui</span></label>
+            <label class="day-check-label"><input type="checkbox" name="scheduleClassDay" value="SEX"> <span>Sex</span></label>
+            <label class="day-check-label"><input type="checkbox" name="scheduleClassDay" value="SAB"> <span>Sáb</span></label>
+          </div>
+        </div>
+
+        <!-- Horário de Início e Término -->
+        <div class="form-grid-2col">
+          <div class="form-group">
+            <label class="form-label" for="scheduleStartTime">Horário de Início *</label>
+            <input type="time" id="scheduleStartTime" class="neo-input" value="14:00" required style="width: 100%;">
+            <!-- Presets rápidos -->
+            <div class="time-presets-row" style="display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap;">
+              <button type="button" class="btn-time-preset" data-time="09:00">09h</button>
+              <button type="button" class="btn-time-preset" data-time="10:00">10h</button>
+              <button type="button" class="btn-time-preset" data-time="14:00">14h</button>
+              <button type="button" class="btn-time-preset" data-time="15:00">15h</button>
+              <button type="button" class="btn-time-preset" data-time="16:00">16h</button>
+              <button type="button" class="btn-time-preset" data-time="17:00">17h</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="scheduleEndTime">Horário de Término *</label>
+            <input type="time" id="scheduleEndTime" class="neo-input" value="15:00" required style="width: 100%;">
+            <!-- Presets de duração -->
+            <div class="duration-presets-row" style="display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap;">
+              <button type="button" class="btn-duration-preset" data-dur="45">45m</button>
+              <button type="button" class="btn-duration-preset" data-dur="60">1h</button>
+              <button type="button" class="btn-duration-preset" data-dur="75">1h15</button>
+              <button type="button" class="btn-duration-preset" data-dur="90">1h30</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-grid-2col">
+          <!-- Tipo de Aula -->
+          <div class="form-group">
+            <label class="form-label" for="scheduleTypeSelect">Tipo de Agendamento</label>
+            <select id="scheduleTypeSelect" class="neo-input" style="width: 100%;">
+              <option value="regular">Aula Regular</option>
+              <option value="replacement">🔄 Aula de Reposição (Falta)</option>
+              <option value="support">Plantão / Apoio Individual</option>
+            </select>
+          </div>
+
+          <!-- Sala / Mesa / Observação -->
+          <div class="form-group">
+            <label class="form-label" for="scheduleNotesInput">Mesa / Observação (Opcional)</label>
+            <input type="text" id="scheduleNotesInput" class="neo-input" placeholder="Ex: Mesa 3, Dúvidas de Bloco C" style="width: 100%;">
+          </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 14px;">
+          <button type="button" class="btn-neo btn-outline" id="btnCancelScheduleModal">Cancelar</button>
+          <button type="submit" class="btn-neo btn-primary" id="btnSaveScheduleSubmit">💾 Salvar Horário</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: DETALHES DO HORÁRIO AGENDADO (AÇÕES RÁPIDAS)
+       ========================================================================= -->
+  <div class="neo-modal-overlay" id="scheduleDetailsModalOverlay">
+    <div class="neo-modal" style="max-width: 480px;">
+      <div class="neo-card-header" style="margin-bottom: 12px;">
+        <h3 class="neo-title" style="font-size: 1.2rem;">
+          <span>⏱️</span> Detalhes da Aula
+        </h3>
+        <button class="modal-close-btn" id="btnCloseScheduleDetailsModal" aria-label="Fechar">✕</button>
+      </div>
+
+      <div id="scheduleDetailsContent">
+        <!-- Preenchido via app.js -->
+      </div>
+
+      <div style="margin-top: 18px; padding-top: 12px; border-top: var(--border-thin); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <button type="button" class="btn-neo btn-danger btn-sm" id="btnDeleteSchedule">
+          🗑️ Excluir Horário
+        </button>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn-neo btn-warning btn-sm" id="btnEditSchedule">
+            ✏️ Editar
+          </button>
+          <button type="button" class="btn-neo btn-outline btn-sm" id="btnCloseScheduleDetailsBottom">
             Fechar
           </button>
         </div>

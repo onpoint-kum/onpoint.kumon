@@ -7,6 +7,10 @@ const State = {
   students: [],
   subjects: [],
   attendances: [],
+  schedules: [],
+  selectedScheduleDay: 'SEG',
+  scheduleTickerInterval: null,
+  selectedScheduleForAction: null,
   html5QrCode: null,
   isCameraActive: false,
   selectedStudentForCard: null,
@@ -92,8 +96,10 @@ function generateNextKumonId(studentsList) {
 // 3. INICIALIZAÇÃO & AUTENTICAÇÃO COM FIREBASE
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+  State.selectedScheduleDay = getTodayDayCode();
   initUIEventListeners();
   initSplashScreen();
+  startScheduleLiveTicker();
 
   // Inicializa o Firebase
   const fbOk = KumonFirebase.init();
@@ -334,18 +340,30 @@ function initFirestoreListeners() {
       State.attendances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       renderLiveStudents();
       renderHistoryTable();
+      renderScheduleTimeline(); // Atualiza indicadores ao vivo dos alunos presentes na grade
       updateBadges();
       if (State.selectedStudentForCard) {
         updateCardStats(State.selectedStudentForCard.kumonId);
       }
     }, (error) => console.error('Erro ao ouvir frequência:', error));
   KumonFirebase.unsubscribers.push(unsubAttendance);
+
+  // 4. Grade de Horários & Escala
+  const unsubSchedules = KumonFirebase.db.collection('kumon_schedules')
+    .onSnapshot((snapshot) => {
+      State.schedules = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderScheduleTimeline();
+      updateScheduleTeacherFilterOptions();
+      updateScheduleSubjectFilterOptions();
+      updateBadges();
+    }, (error) => console.error('Erro ao ouvir horários:', error));
+  KumonFirebase.unsubscribers.push(unsubSchedules);
 }
 
 // Utilitário para desenvolvedor esvaziar coleções se necessário
 window.clearKumonDatabase = async function() {
   if (!KumonFirebase.db) return;
-  const collections = ['kumon_students', 'kumon_subjects', 'kumon_attendance'];
+  const collections = ['kumon_students', 'kumon_subjects', 'kumon_attendance', 'kumon_schedules'];
   for (const colName of collections) {
     const snap = await KumonFirebase.db.collection(colName).get();
     const batch = KumonFirebase.db.batch();
@@ -360,10 +378,18 @@ function loadOfflineFallback() {
   showAppDashboard();
   State.subjects = [];
   State.students = [];
+  State.schedules = [];
+  try {
+    const cached = localStorage.getItem('kumon_offline_schedules');
+    if (cached) State.schedules = JSON.parse(cached);
+  } catch (e) {}
   renderSubjects();
   renderStudentsList();
   renderQuickTestChips();
   updateCardStudentSelect();
+  renderScheduleTimeline();
+  updateScheduleTeacherFilterOptions();
+  updateScheduleSubjectFilterOptions();
   updateBadges();
 }
 
@@ -1907,6 +1933,14 @@ function updateBadges() {
   if (badgePresentes) badgePresentes.textContent = countPresent;
   if (badgeTotalAlunos) badgeTotalAlunos.textContent = State.students.length;
   if (badgeTotalMaterias) badgeTotalMaterias.textContent = State.subjects.length;
+
+  const badgeHorarios = document.getElementById('badgeHorarios');
+  const curDay = State.selectedScheduleDay || getTodayDayCode();
+  const countHorarios = (State.schedules || []).filter(s => s.dayOfWeek === curDay).length;
+  if (badgeHorarios) {
+    badgeHorarios.textContent = countHorarios;
+    badgeHorarios.style.display = countHorarios > 0 ? 'inline-block' : 'none';
+  }
   if (totemLiveCount) totemLiveCount.textContent = countPresent;
   if (totemTodayCount) totemTodayCount.textContent = countToday;
 }
@@ -2155,6 +2189,100 @@ function initUIEventListeners() {
   // Atualizar Presentes
   document.getElementById('btnRefreshLive')?.addEventListener('click', renderLiveStudents);
 
+  // ========================================================================
+  // EVENTOS DA GRADE DE HORÁRIOS & TIMELINE
+  // ========================================================================
+  document.querySelectorAll('.day-tab-btn[data-day]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const day = btn.getAttribute('data-day');
+      State.selectedScheduleDay = day;
+      renderScheduleTimeline();
+      updateBadges();
+    });
+  });
+
+  document.getElementById('btnScheduleGoToday')?.addEventListener('click', () => {
+    State.selectedScheduleDay = getTodayDayCode();
+    renderScheduleTimeline();
+    updateBadges();
+    setTimeout(scrollTimelineToCurrentTime, 80);
+  });
+
+  document.getElementById('filterScheduleTeacher')?.addEventListener('change', renderScheduleTimeline);
+  document.getElementById('filterScheduleSubject')?.addEventListener('change', renderScheduleTimeline);
+
+  document.getElementById('btnAutoGenerateSchedule')?.addEventListener('click', () => {
+    autoGenerateSchedulesForDay();
+  });
+
+  document.getElementById('btnOpenNewScheduleModal')?.addEventListener('click', () => {
+    openNewScheduleModal();
+  });
+
+  document.getElementById('btnCloseScheduleModal')?.addEventListener('click', () => {
+    document.getElementById('scheduleModalOverlay')?.classList.remove('active');
+  });
+
+  document.getElementById('btnCancelScheduleModal')?.addEventListener('click', () => {
+    document.getElementById('scheduleModalOverlay')?.classList.remove('active');
+  });
+
+  document.getElementById('formSchedule')?.addEventListener('submit', saveSchedule);
+
+  // Auto preenchimento ao escolher aluno no modal de agendamento
+  document.getElementById('scheduleStudentSelect')?.addEventListener('change', (e) => {
+    onScheduleStudentSelected(e.target.value);
+  });
+
+  // Presets de tempo no modal de agendamento
+  document.querySelectorAll('.btn-time-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const timeVal = btn.getAttribute('data-time');
+      const startInput = document.getElementById('scheduleStartTime');
+      const endInput = document.getElementById('scheduleEndTime');
+      if (startInput) startInput.value = timeVal;
+      if (endInput && timeVal) {
+        const [h, m] = timeVal.split(':').map(Number);
+        endInput.value = `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      }
+    });
+  });
+
+  // Presets de duração no modal de agendamento
+  document.querySelectorAll('.btn-duration-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const durMins = parseInt(btn.getAttribute('data-dur'), 10) || 60;
+      const startInput = document.getElementById('scheduleStartTime');
+      const endInput = document.getElementById('scheduleEndTime');
+      if (startInput && endInput && startInput.value) {
+        const startMins = timeToMinutes(startInput.value);
+        endInput.value = minutesToTime(startMins + durMins);
+      }
+    });
+  });
+
+  // Modal de Detalhes do Horário
+  document.getElementById('btnCloseScheduleDetailsModal')?.addEventListener('click', () => {
+    document.getElementById('scheduleDetailsModalOverlay')?.classList.remove('active');
+  });
+
+  document.getElementById('btnCloseScheduleDetailsBottom')?.addEventListener('click', () => {
+    document.getElementById('scheduleDetailsModalOverlay')?.classList.remove('active');
+  });
+
+  document.getElementById('btnDeleteSchedule')?.addEventListener('click', () => {
+    if (State.selectedScheduleForAction) {
+      deleteSchedule(State.selectedScheduleForAction.id);
+    }
+  });
+
+  document.getElementById('btnEditSchedule')?.addEventListener('click', () => {
+    document.getElementById('scheduleDetailsModalOverlay')?.classList.remove('active');
+    if (State.selectedScheduleForAction) {
+      openEditScheduleModal(State.selectedScheduleForAction.id);
+    }
+  });
+
   // Teclado do PIN Lock
   document.querySelectorAll('.pin-key[data-digit]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2208,6 +2336,11 @@ function switchTab(tabId) {
     renderLiveStudents();
   } else if (tabId === 'tab-carteirinha') {
     updateCardStudentSelect();
+  } else if (tabId === 'tab-horarios') {
+    renderScheduleTimeline();
+    updateScheduleTeacherFilterOptions();
+    updateScheduleSubjectFilterOptions();
+    setTimeout(scrollTimelineToCurrentTime, 80);
   }
 
   // Pausa câmera ao sair da aba do totem para economizar bateria
@@ -2509,6 +2642,778 @@ function attachPhoneMask(inputEl) {
   });
 }
 
+// ==========================================================================
+// 14. GRADE DE HORÁRIOS & TIMELINE EM TEMPO REAL POR ORIENTADOR (ESTILO EMUSYS)
+// ==========================================================================
+function getTodayDayCode() {
+  const days = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
+  return days[new Date().getDay()];
+}
+
+function getDayFullName(dayCode) {
+  const names = {
+    'SEG': 'Segunda-feira',
+    'TER': 'Terça-feira',
+    'QUA': 'Quarta-feira',
+    'QUI': 'Quinta-feira',
+    'SEX': 'Sexta-feira',
+    'SAB': 'Sábado',
+    'DOM': 'Domingo'
+  };
+  return names[dayCode] || dayCode;
+}
+
+function timeToMinutes(timeStr) {
+  if (!timeStr) return 0;
+  const parts = String(timeStr).split(':').map(Number);
+  return (parts[0] || 0) * 60 + (parts[1] || 0);
+}
+
+function minutesToTime(totalMins) {
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function getSubjectColor(subjectName) {
+  if (!subjectName) return '#E2E8F0';
+  const sub = (State.subjects || []).find(s => s.name === subjectName);
+  return sub ? sub.color : '#E0F2FE';
+}
+
+function getAllTeachers() {
+  const teachersMap = new Map();
+  if (State.currentTeacher && State.currentTeacher.nickname) {
+    teachersMap.set(State.currentTeacher.nickname, {
+      name: State.currentTeacher.nickname,
+      fullName: State.currentTeacher.fullName || State.currentTeacher.nickname,
+      photo: State.currentTeacher.photoBase64 || '',
+      avatar: State.currentTeacher.gender === 'Masculino' ? '👨‍🏫' : '👩‍🏫'
+    });
+  }
+  (State.students || []).forEach(st => {
+    if (st.orientador && !teachersMap.has(st.orientador)) {
+      teachersMap.set(st.orientador, {
+        name: st.orientador,
+        fullName: st.orientador,
+        photo: '',
+        avatar: '🧑‍🏫'
+      });
+    }
+  });
+  (State.schedules || []).forEach(sch => {
+    if (sch.orientador && !teachersMap.has(sch.orientador)) {
+      teachersMap.set(sch.orientador, {
+        name: sch.orientador,
+        fullName: sch.orientador,
+        photo: '',
+        avatar: '🧑‍🏫'
+      });
+    }
+  });
+  if (teachersMap.size === 0) {
+    teachersMap.set('Orientador(a)', {
+      name: 'Orientador(a)',
+      fullName: 'Orientador(a)',
+      photo: '',
+      avatar: '🧑‍🏫'
+    });
+  }
+  return Array.from(teachersMap.values());
+}
+
+function assignLanesToSchedules(schedules) {
+  const sorted = [...schedules].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+  const lanes = [];
+
+  sorted.forEach(item => {
+    const start = timeToMinutes(item.startTime);
+    const end = timeToMinutes(item.endTime);
+    let assignedLane = -1;
+    for (let i = 0; i < lanes.length; i++) {
+      if (lanes[i] <= start) {
+        assignedLane = i;
+        lanes[i] = end;
+        break;
+      }
+    }
+    if (assignedLane === -1) {
+      assignedLane = lanes.length;
+      lanes.push(end);
+    }
+    item._lane = assignedLane;
+  });
+
+  return { items: sorted, maxLanes: Math.max(1, lanes.length) };
+}
+
+function updateScheduleTeacherFilterOptions() {
+  const select = document.getElementById('filterScheduleTeacher');
+  if (!select) return;
+  const currentVal = select.value;
+
+  const teachers = getAllTeachers();
+  let html = '<option value="all">👥 Todos os Orientadores</option>';
+  teachers.forEach(t => {
+    html += `<option value="${t.name}">${t.name}</option>`;
+  });
+  select.innerHTML = html;
+  if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+    select.value = currentVal;
+  }
+}
+
+function updateScheduleSubjectFilterOptions() {
+  const select = document.getElementById('filterScheduleSubject');
+  if (!select) return;
+  const currentVal = select.value;
+
+  let html = '<option value="all">Todas as Matérias</option>';
+  (State.subjects || []).forEach(sub => {
+    html += `<option value="${sub.name}">${sub.name}</option>`;
+  });
+  select.innerHTML = html;
+  if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+    select.value = currentVal;
+  }
+}
+
+function renderScheduleTimeline() {
+  const board = document.getElementById('timelineBoard');
+  if (!board) return;
+
+  // Atualiza botões dos dias
+  document.querySelectorAll('.day-tab-btn[data-day]').forEach(btn => {
+    const day = btn.getAttribute('data-day');
+    btn.classList.toggle('active', day === State.selectedScheduleDay);
+  });
+
+  const todayCode = getTodayDayCode();
+  const btnToday = document.getElementById('btnScheduleGoToday');
+  if (btnToday) {
+    btnToday.classList.toggle('active', State.selectedScheduleDay === todayCode);
+  }
+
+  const dayLabel = document.getElementById('scheduleSelectedDayLabel');
+  if (dayLabel) {
+    const isToday = (State.selectedScheduleDay === todayCode);
+    dayLabel.textContent = `${getDayFullName(State.selectedScheduleDay)}${isToday ? ' (Hoje ⚡)' : ''}`;
+  }
+
+  const teacherFilter = document.getElementById('filterScheduleTeacher')?.value || 'all';
+  const subjectFilter = document.getElementById('filterScheduleSubject')?.value || 'all';
+
+  // 14 marcas de horas: 08:00 até 21:00 (13 slots de 1 hora)
+  const hourMarks = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
+
+  const headerHtml = `
+    <div class="timeline-header-row">
+      <div class="timeline-teacher-col-header">
+        <span>Orientador / Mesa</span>
+        <span style="font-size:0.7rem; color:var(--kumon-gray-muted);">Grade</span>
+      </div>
+      <div class="timeline-hours-track">
+        ${hourMarks.map(h => `<div class="timeline-hour-cell">${h}</div>`).join('')}
+      </div>
+    </div>
+  `;
+
+  // Filtra agendamentos do dia selecionado
+  let daySchedules = (State.schedules || []).filter(s => s.dayOfWeek === State.selectedScheduleDay);
+  if (subjectFilter !== 'all') {
+    daySchedules = daySchedules.filter(s => s.subject === subjectFilter);
+  }
+
+  let teachers = getAllTeachers();
+  if (teacherFilter !== 'all') {
+    teachers = teachers.filter(t => t.name === teacherFilter);
+  }
+
+  let rowsHtml = '';
+  teachers.forEach(teacher => {
+    const tSchedules = daySchedules.filter(s => s.orientador === teacher.name);
+    const { items, maxLanes } = assignLanesToSchedules(tSchedules);
+    const trackHeight = Math.max(70, 16 + (maxLanes * 48));
+
+    const avatarHtml = teacher.photo
+      ? `<img src="${teacher.photo}" alt="${teacher.name}">`
+      : `<span>${teacher.avatar || '🧑‍🏫'}</span>`;
+
+    const cardsHtml = items.map(item => {
+      const startMin = timeToMinutes(item.startTime) - 480; // 08:00 = 480 min
+      const endMin = timeToMinutes(item.endTime) - 480;
+      const totalMin = 13 * 60; // 780 min (08h às 21h)
+
+      const leftPct = Math.max(0, Math.min(100, (startMin / totalMin) * 100));
+      const widthPct = Math.max(3.5, Math.min(100 - leftPct, ((endMin - startMin) / totalMin) * 100));
+      const topPx = 10 + (item._lane * 46);
+
+      const subjColor = getSubjectColor(item.subject);
+      const isLiveInRoom = (State.attendances || []).some(a => (a.studentId === item.studentId || a.kumonId === item.studentKumonId) && a.status === 'in');
+      const isReplacement = (item.type === 'replacement');
+
+      return `
+        <div class="schedule-card ${isLiveInRoom ? 'is-live-present' : ''}"
+             style="left: ${leftPct.toFixed(2)}%; width: ${widthPct.toFixed(2)}%; top: ${topPx}px; background: ${subjColor};"
+             onclick="openScheduleDetailsModal('${item.id}')"
+             title="${item.studentName} (${item.startTime} às ${item.endTime} - ${item.subject || 'Geral'})">
+          <div class="schedule-card-title">
+            <span>${item.studentAvatar || '🧑'}</span>
+            <span>${item.studentName}</span>
+          </div>
+          <div class="schedule-card-meta">
+            <span>⏱️ ${item.startTime}-${item.endTime}</span>
+            ${isLiveInRoom ? '<span class="badge-live-pulse">🟢 Em Sala</span>' : ''}
+            ${isReplacement ? '<span class="brand-badge" style="background:#FEF3C7; color:#92400E; font-size:0.6rem; padding:1px 4px;">🔄 Reposição</span>' : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    rowsHtml += `
+      <div class="timeline-teacher-row" style="min-height: ${trackHeight}px;">
+        <div class="timeline-teacher-cell">
+          <div class="timeline-teacher-avatar">
+            ${avatarHtml}
+          </div>
+          <div class="timeline-teacher-info">
+            <span class="timeline-teacher-name" title="${teacher.name}">${teacher.name}</span>
+            <span class="timeline-teacher-count">${items.length} ${items.length === 1 ? 'aluno' : 'alunos'}</span>
+          </div>
+        </div>
+        <div class="timeline-teacher-track" style="min-height: ${trackHeight}px;">
+          ${hourMarks.map(() => '<div class="timeline-hour-slot-bg"></div>').join('')}
+          ${cardsHtml}
+        </div>
+      </div>
+    `;
+  });
+
+  if (teachers.length === 0) {
+    rowsHtml = `
+      <div style="text-align:center; padding: 40px 16px; color: var(--kumon-gray-muted);">
+        <div style="font-size:2.5rem; margin-bottom:8px;">📅</div>
+        <h3 style="font-family:var(--font-heading); font-size:1.15rem; color:var(--kumon-navy);">Nenhum orientador encontrado</h3>
+        <p style="font-size:0.85rem;">Cadastre orientadores no perfil ou vincule-os aos alunos.</p>
+      </div>
+    `;
+  }
+
+  board.innerHTML = `
+    ${headerHtml}
+    <div class="timeline-body" id="timelineBodyArea">
+      <div id="timelineNowBar" class="timeline-now-bar" style="display: none;">
+        <div id="timelineNowBadge" class="timeline-now-badge">--:--:--</div>
+      </div>
+      ${rowsHtml}
+    </div>
+  `;
+
+  updateTimelineCurrentTimeBar();
+}
+
+function startScheduleLiveTicker() {
+  if (State.scheduleTickerInterval) clearInterval(State.scheduleTickerInterval);
+  updateTimelineCurrentTimeBar();
+  State.scheduleTickerInterval = setInterval(updateTimelineCurrentTimeBar, 1000);
+}
+
+function updateTimelineCurrentTimeBar() {
+  const nowBar = document.getElementById('timelineNowBar');
+  const nowBadge = document.getElementById('timelineNowBadge');
+  const clockEl = document.getElementById('scheduleLiveClock');
+
+  const now = new Date();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+  const timeFormatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+  if (clockEl) clockEl.textContent = timeFormatted;
+  if (nowBadge) nowBadge.textContent = timeFormatted;
+
+  if (!nowBar) return;
+
+  const currentDayCode = getTodayDayCode();
+  const isToday = (State.selectedScheduleDay === currentDayCode);
+
+  const startHour = 8;
+  const endHour = 21;
+  const totalMinutes = (endHour - startHour) * 60; // 780 min
+  const currentMinutes = (h - startHour) * 60 + m + (s / 60);
+
+  if (isToday && currentMinutes >= 0 && currentMinutes <= totalMinutes) {
+    const percent = (currentMinutes / totalMinutes) * 100;
+    nowBar.style.display = 'block';
+    nowBar.style.left = `calc(190px + (100% - 190px) * ${percent / 100})`;
+  } else {
+    nowBar.style.display = 'none';
+  }
+}
+
+function scrollTimelineToCurrentTime() {
+  const wrapper = document.getElementById('timelineBoardWrapper');
+  const nowBar = document.getElementById('timelineNowBar');
+  if (!wrapper || !nowBar || nowBar.style.display === 'none') return;
+
+  const now = new Date();
+  const currentDayCode = getTodayDayCode();
+  if (State.selectedScheduleDay !== currentDayCode) return;
+
+  const h = now.getHours();
+  if (h < 8 || h > 21) return;
+
+  const barOffsetLeft = nowBar.offsetLeft;
+  const targetScroll = barOffsetLeft - (wrapper.clientWidth / 2);
+  wrapper.scrollTo({
+    left: Math.max(0, targetScroll),
+    behavior: 'smooth'
+  });
+}
+
+function populateScheduleModalDropdowns() {
+  // Alunos
+  const studentSelect = document.getElementById('scheduleStudentSelect');
+  if (studentSelect) {
+    let opts = '<option value="">Selecione um aluno cadastrado...</option>';
+    (State.students || []).forEach(st => {
+      opts += `<option value="${st.id || st.kumonId}">${st.name} (${st.kumonId})</option>`;
+    });
+    studentSelect.innerHTML = opts;
+  }
+
+  // Orientadores
+  const teacherSelect = document.getElementById('scheduleTeacherSelect');
+  if (teacherSelect) {
+    let opts = '<option value="">Selecione o Orientador...</option>';
+    getAllTeachers().forEach(t => {
+      opts += `<option value="${t.name}">${t.name}</option>`;
+    });
+    teacherSelect.innerHTML = opts;
+  }
+
+  // Matérias
+  const subjSelect = document.getElementById('scheduleSubjectSelect');
+  if (subjSelect) {
+    let opts = '<option value="">Todas as Matérias / Geral</option>';
+    (State.subjects || []).forEach(sub => {
+      opts += `<option value="${sub.name}">${sub.name}</option>`;
+    });
+    subjSelect.innerHTML = opts;
+  }
+}
+
+function onScheduleStudentSelected(studentId) {
+  if (!studentId) return;
+  const st = State.students.find(s => s.id === studentId || s.kumonId === studentId);
+  if (!st) return;
+
+  // Auto-seleciona orientador
+  if (st.orientador) {
+    const teacherSelect = document.getElementById('scheduleTeacherSelect');
+    if (teacherSelect) teacherSelect.value = st.orientador;
+  }
+
+  // Auto-seleciona primeira matéria
+  if (st.subjects && st.subjects.length > 0) {
+    const subjSelect = document.getElementById('scheduleSubjectSelect');
+    if (subjSelect) subjSelect.value = st.subjects[0];
+  }
+
+  // Marca dias da semana do aluno
+  if (st.classDays && st.classDays.length > 0) {
+    document.querySelectorAll('input[name="scheduleClassDay"]').forEach(cb => {
+      cb.checked = st.classDays.includes(cb.value);
+    });
+  }
+}
+
+function openNewScheduleModal(prefillDay, prefillTeacher, prefillStudent) {
+  populateScheduleModalDropdowns();
+
+  document.getElementById('scheduleFormMode').value = 'create';
+  document.getElementById('scheduleDocId').value = '';
+  document.getElementById('modalScheduleTitle').innerHTML = '<span>📅</span> Agendar Horário de Aula';
+
+  const defaultDay = prefillDay || State.selectedScheduleDay || getTodayDayCode();
+  document.querySelectorAll('input[name="scheduleClassDay"]').forEach(cb => {
+    cb.checked = (cb.value === defaultDay);
+  });
+
+  const defaultTeacher = prefillTeacher || (State.currentTeacher ? State.currentTeacher.nickname : '');
+  if (defaultTeacher) {
+    document.getElementById('scheduleTeacherSelect').value = defaultTeacher;
+  }
+
+  if (prefillStudent) {
+    document.getElementById('scheduleStudentSelect').value = prefillStudent;
+    onScheduleStudentSelected(prefillStudent);
+  }
+
+  document.getElementById('scheduleStartTime').value = '14:00';
+  document.getElementById('scheduleEndTime').value = '15:00';
+  document.getElementById('scheduleTypeSelect').value = 'regular';
+  document.getElementById('scheduleNotesInput').value = '';
+
+  document.getElementById('scheduleModalOverlay')?.classList.add('active');
+}
+
+function openEditScheduleModal(scheduleId) {
+  const schedule = (State.schedules || []).find(s => s.id === scheduleId);
+  if (!schedule) return;
+
+  populateScheduleModalDropdowns();
+
+  document.getElementById('scheduleFormMode').value = 'edit';
+  document.getElementById('scheduleDocId').value = schedule.id;
+  document.getElementById('modalScheduleTitle').innerHTML = '<span>✏️</span> Editar Horário de Aula';
+
+  document.getElementById('scheduleStudentSelect').value = schedule.studentId;
+  document.getElementById('scheduleTeacherSelect').value = schedule.orientador || '';
+  document.getElementById('scheduleSubjectSelect').value = schedule.subject || '';
+  document.getElementById('scheduleStartTime').value = schedule.startTime || '14:00';
+  document.getElementById('scheduleEndTime').value = schedule.endTime || '15:00';
+  document.getElementById('scheduleTypeSelect').value = schedule.type || 'regular';
+  document.getElementById('scheduleNotesInput').value = schedule.notes || '';
+
+  document.querySelectorAll('input[name="scheduleClassDay"]').forEach(cb => {
+    cb.checked = (cb.value === schedule.dayOfWeek);
+  });
+
+  document.getElementById('scheduleModalOverlay')?.classList.add('active');
+}
+
+async function saveSchedule(e) {
+  e.preventDefault();
+
+  const mode = document.getElementById('scheduleFormMode').value;
+  const docId = document.getElementById('scheduleDocId').value;
+  const studentId = document.getElementById('scheduleStudentSelect').value;
+  const orientador = document.getElementById('scheduleTeacherSelect').value;
+  const subject = document.getElementById('scheduleSubjectSelect').value;
+  const startTime = document.getElementById('scheduleStartTime').value;
+  const endTime = document.getElementById('scheduleEndTime').value;
+  const type = document.getElementById('scheduleTypeSelect').value;
+  const notes = document.getElementById('scheduleNotesInput').value.trim();
+
+  const selectedDays = Array.from(document.querySelectorAll('input[name="scheduleClassDay"]:checked')).map(cb => cb.value);
+
+  if (!studentId) {
+    alert('Por favor, selecione um aluno.');
+    return;
+  }
+  if (!orientador) {
+    alert('Por favor, selecione um orientador.');
+    return;
+  }
+  if (selectedDays.length === 0) {
+    alert('Por favor, selecione pelo menos um dia da semana.');
+    return;
+  }
+  if (timeToMinutes(endTime) <= timeToMinutes(startTime)) {
+    alert('O horário de término deve ser após o horário de início.');
+    return;
+  }
+
+  const student = State.students.find(s => s.id === studentId || s.kumonId === studentId);
+  const studentName = student ? student.name : 'Aluno';
+  const studentAvatar = student ? (student.avatar || (student.isAdult ? '🧑' : '👦')) : '🧑';
+  const studentKumonId = student ? student.kumonId : '';
+
+  try {
+    if (mode === 'edit' && docId) {
+      const updatedData = {
+        studentId,
+        studentKumonId,
+        studentName,
+        studentAvatar,
+        orientador,
+        dayOfWeek: selectedDays[0],
+        startTime,
+        endTime,
+        subject,
+        type,
+        notes,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (KumonFirebase.db) {
+        await KumonFirebase.db.collection('kumon_schedules').doc(docId).update(updatedData);
+      } else {
+        const idx = State.schedules.findIndex(s => s.id === docId);
+        if (idx !== -1) {
+          State.schedules[idx] = { ...State.schedules[idx], ...updatedData };
+          try {
+            localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
+          } catch(e) {}
+        }
+      }
+    } else {
+      for (const day of selectedDays) {
+        const newSched = {
+          studentId,
+          studentKumonId,
+          studentName,
+          studentAvatar,
+          orientador,
+          dayOfWeek: day,
+          startTime,
+          endTime,
+          subject,
+          type,
+          notes,
+          createdAt: new Date().toISOString()
+        };
+
+        if (KumonFirebase.db) {
+          await KumonFirebase.db.collection('kumon_schedules').add(newSched);
+        } else {
+          newSched.id = 'sch-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+          State.schedules.push(newSched);
+        }
+      }
+
+      if (!KumonFirebase.db) {
+        try {
+          localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
+        } catch(e) {}
+      }
+    }
+
+    document.getElementById('scheduleModalOverlay')?.classList.remove('active');
+    renderScheduleTimeline();
+    updateBadges();
+
+    if (window.kumonAudio) window.kumonAudio.playCheckIn();
+  } catch (err) {
+    console.error('Erro ao salvar horário:', err);
+    alert('Erro ao salvar horário: ' + (err.message || err));
+  }
+}
+
+function openScheduleDetailsModal(scheduleId) {
+  const schedule = (State.schedules || []).find(s => s.id === scheduleId);
+  if (!schedule) return;
+  State.selectedScheduleForAction = schedule;
+
+  const st = State.students.find(s => s.id === schedule.studentId || s.kumonId === schedule.studentId || s.kumonId === schedule.studentKumonId);
+  const container = document.getElementById('scheduleDetailsContent');
+  if (!container) return;
+
+  const todayStr = getTodayDateString();
+  const todayAtt = State.attendances.find(a => (a.studentId === schedule.studentId || a.kumonId === schedule.studentKumonId) && a.date === todayStr);
+  const isTodayClass = (schedule.dayOfWeek === getTodayDayCode());
+
+  let statusHtml = '';
+  if (todayAtt) {
+    if (todayAtt.status === 'in') {
+      statusHtml = `
+        <div style="background:#DCFCE7; border:2px solid #16A34A; border-radius:8px; padding:10px; margin-bottom:12px;">
+          <div style="font-weight:800; color:#15803D; font-size:0.9rem;">🟢 Aluno em Sala de Estudos Agora</div>
+          <div style="font-size:0.78rem; color:#166534; margin-top:2px;">Entrada registrada às <strong>${todayAtt.timeIn}</strong> no Totem.</div>
+        </div>
+      `;
+    } else {
+      statusHtml = `
+        <div style="background:#F1F5F9; border:2px solid #64748B; border-radius:8px; padding:10px; margin-bottom:12px;">
+          <div style="font-weight:800; color:#334155; font-size:0.9rem;">🏁 Aula Concluída Hoje</div>
+          <div style="font-size:0.78rem; color:#475569; margin-top:2px;">Entrada: <strong>${todayAtt.timeIn}</strong> • Saída: <strong>${todayAtt.timeOut}</strong> (Duração: ${todayAtt.durationMinutes || 0} min)</div>
+        </div>
+      `;
+    }
+  } else {
+    statusHtml = `
+      <div style="background:#FFFBEB; border:2px solid #F59E0B; border-radius:8px; padding:10px; margin-bottom:12px;">
+        <div style="font-weight:800; color:#B45309; font-size:0.9rem;">⏳ Aguardando Aluno</div>
+        <div style="font-size:0.78rem; color:#92400E; margin-top:2px;">O aluno ainda não registrou entrada no Totem hoje.</div>
+      </div>
+    `;
+  }
+
+  const phone = (st && st.parentPhone) || '';
+  const cleanPhone = phone.replace(/\D/g, '');
+  const waMsg = encodeURIComponent(`Olá! Tudo bem? Passando para lembrar da aulinha do Kumon hoje às ${schedule.startTime} com ${schedule.orientador}!`);
+  const waLink = cleanPhone ? `https://wa.me/55${cleanPhone}?text=${waMsg}` : '';
+
+  container.innerHTML = `
+    <!-- Card do Aluno -->
+    <div style="display:flex; align-items:center; gap:12px; background:#F8FAFC; border:2px solid #0B2545; border-radius:10px; padding:10px 14px; margin-bottom:14px;">
+      <div style="width:48px; height:48px; border-radius:50%; border:2px solid #0B2545; background:var(--kumon-yellow); display:flex; align-items:center; justify-content:center; font-size:1.6rem; flex-shrink:0;">
+        ${schedule.studentAvatar || (st && st.avatar) || '🧑'}
+      </div>
+      <div>
+        <div style="font-family:var(--font-heading); font-weight:800; font-size:1.05rem; color:var(--kumon-navy);">
+          ${schedule.studentName}
+        </div>
+        <div style="font-size:0.78rem; font-weight:700; color:var(--kumon-blue-dark);">
+          ${schedule.studentKumonId ? `ID: ${schedule.studentKumonId}` : ''}
+          ${st && st.isAdult ? '<span class="brand-badge" style="background:#E0E7FF; color:#3730A3; font-size:0.65rem; margin-left:4px;">ADULTO</span>' : ''}
+        </div>
+      </div>
+    </div>
+
+    ${statusHtml}
+
+    <!-- Informações da Aula -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+      <div class="teacher-info-item">
+        <span class="info-label">Dia da Semana:</span>
+        <span class="info-value"><strong>${getDayFullName(schedule.dayOfWeek)}</strong></span>
+      </div>
+      <div class="teacher-info-item">
+        <span class="info-label">Horário Previsto:</span>
+        <span class="info-value"><strong>${schedule.startTime} às ${schedule.endTime}</strong></span>
+      </div>
+      <div class="teacher-info-item">
+        <span class="info-label">Orientador(a):</span>
+        <span class="info-value"><strong>${schedule.orientador || 'Não atribuído'}</strong></span>
+      </div>
+      <div class="teacher-info-item">
+        <span class="info-label">Disciplina / Matéria:</span>
+        <span class="info-value"><span class="subject-badge" style="background:${getSubjectColor(schedule.subject)};">${schedule.subject || 'Geral'}</span></span>
+      </div>
+    </div>
+
+    ${schedule.notes ? `
+      <div style="background:#F1F5F9; border-radius:6px; padding:8px 12px; font-size:0.8rem; color:#334155; margin-bottom:14px; border:1px solid #CBD5E1;">
+        <strong>Observação:</strong> ${schedule.notes}
+      </div>
+    ` : ''}
+
+    <!-- Ações Rápidas -->
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      ${(!todayAtt && isTodayClass && schedule.studentKumonId) ? `
+        <button type="button" class="btn-neo btn-success" style="width:100%; justify-content:center; padding:10px;" onclick="quickCheckInFromSchedule('${schedule.studentKumonId}')">
+          🟢 Registrar Ponto de Entrada Agora
+        </button>
+      ` : ''}
+      
+      <div style="display:flex; gap:8px;">
+        ${waLink ? `
+          <a href="${waLink}" target="_blank" class="btn-neo btn-outline" style="flex:1; justify-content:center; text-decoration:none; padding:8px; font-size:0.82rem; color:#15803D;">
+            💬 Chamar no WhatsApp
+          </a>
+        ` : ''}
+        ${schedule.studentKumonId ? `
+          <button type="button" class="btn-neo btn-outline" style="flex:1; justify-content:center; padding:8px; font-size:0.82rem;" onclick="quickViewCardFromSchedule('${schedule.studentKumonId}')">
+            🪪 Ver Carteirinha
+          </button>
+        ` : ''}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('scheduleDetailsModalOverlay')?.classList.add('active');
+}
+
+async function deleteSchedule(scheduleId) {
+  if (!confirm('Deseja realmente excluir este horário da grade?')) return;
+
+  try {
+    if (KumonFirebase.db && scheduleId) {
+      await KumonFirebase.db.collection('kumon_schedules').doc(scheduleId).delete();
+    } else {
+      State.schedules = (State.schedules || []).filter(s => s.id !== scheduleId);
+      try {
+        localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
+      } catch(e) {}
+    }
+
+    document.getElementById('scheduleDetailsModalOverlay')?.classList.remove('active');
+    renderScheduleTimeline();
+    updateBadges();
+  } catch (err) {
+    console.error('Erro ao excluir horário:', err);
+    alert('Erro ao excluir horário: ' + (err.message || err));
+  }
+}
+
+async function autoGenerateSchedulesForDay(dayCode) {
+  const day = dayCode || State.selectedScheduleDay || getTodayDayCode();
+  const studentsOnDay = (State.students || []).filter(st => (st.classDays || []).includes(day));
+
+  if (studentsOnDay.length === 0) {
+    alert(`Nenhum aluno cadastrado tem aula marcada para ${getDayFullName(day)}.`);
+    return;
+  }
+
+  const existingStudentIds = new Set(
+    (State.schedules || []).filter(s => s.dayOfWeek === day).map(s => s.studentId)
+  );
+
+  const pendingStudents = studentsOnDay.filter(st => !existingStudentIds.has(st.id) && !existingStudentIds.has(st.kumonId));
+
+  if (pendingStudents.length === 0) {
+    alert(`Todos os ${studentsOnDay.length} alunos de ${getDayFullName(day)} já possuem horários definidos na grade!`);
+    return;
+  }
+
+  if (!confirm(`Deseja gerar automaticamente horários para ${pendingStudents.length} alunos em ${getDayFullName(day)}?`)) {
+    return;
+  }
+
+  const timeSlots = ['14:00', '15:00', '16:00', '17:00', '10:00', '11:00', '18:00'];
+  let createdCount = 0;
+
+  for (let i = 0; i < pendingStudents.length; i++) {
+    const st = pendingStudents[i];
+    const slotStart = timeSlots[i % timeSlots.length];
+    const [h, m] = slotStart.split(':').map(Number);
+    const slotEnd = `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    const orientador = st.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'Orientador(a)');
+    const subject = (st.subjects && st.subjects.length > 0) ? st.subjects[0] : 'Matemática';
+
+    const newSchedule = {
+      studentId: st.id || st.kumonId,
+      studentKumonId: st.kumonId,
+      studentName: st.name,
+      studentAvatar: st.avatar || (st.isAdult ? '🧑' : '👦'),
+      orientador: orientador,
+      dayOfWeek: day,
+      startTime: slotStart,
+      endTime: slotEnd,
+      subject: subject,
+      type: 'regular',
+      notes: 'Gerado automaticamente',
+      createdAt: new Date().toISOString()
+    };
+
+    if (KumonFirebase.db) {
+      await KumonFirebase.db.collection('kumon_schedules').add(newSchedule);
+    } else {
+      newSchedule.id = 'sch-' + Date.now() + '-' + i;
+      State.schedules.push(newSchedule);
+    }
+    createdCount++;
+  }
+
+  if (!KumonFirebase.db) {
+    try {
+      localStorage.setItem('kumon_offline_schedules', JSON.stringify(State.schedules));
+    } catch (e) {}
+    renderScheduleTimeline();
+    updateBadges();
+  }
+
+  if (window.kumonAudio) window.kumonAudio.playCheckIn();
+  alert(`🎉 ${createdCount} horários gerados com sucesso para ${getDayFullName(day)}!`);
+}
+
+function quickCheckInFromSchedule(kumonId) {
+  document.getElementById('scheduleDetailsModalOverlay')?.classList.remove('active');
+  handleCheckInOut(kumonId, 'manual');
+}
+
+function quickViewCardFromSchedule(kumonId) {
+  document.getElementById('scheduleDetailsModalOverlay')?.classList.remove('active');
+  switchTab('tab-carteirinha');
+  const select = document.getElementById('selectCardStudent');
+  if (select) {
+    select.value = kumonId;
+    renderStudentCard(kumonId);
+  }
+}
+
 // Expõe funções necessárias para cliques inline no HTML
 window.formatBrazilianPhone = formatBrazilianPhone;
 window.openEditStudentModal = openEditStudentModal;
@@ -2522,3 +3427,7 @@ window.quickUseReplacement = quickUseReplacement;
 window.openStudentProfileModal = openStudentProfileModal;
 window.openHomeworkCheckInModal = openHomeworkCheckInModal;
 window.closeHomeworkModal = closeHomeworkModal;
+window.openScheduleDetailsModal = openScheduleDetailsModal;
+window.quickCheckInFromSchedule = quickCheckInFromSchedule;
+window.quickViewCardFromSchedule = quickViewCardFromSchedule;
+window.autoGenerateSchedulesForDay = autoGenerateSchedulesForDay;

@@ -1,6 +1,6 @@
 {
-  "version": "1.7.0",
-  "build": 13,
+  "version": "1.8.0",
+  "build": 14,
   "appName": "Kumon Onpoint",
-  "releaseName": "Máscara automática de telefone e correção definitiva da duplicação de QR Code"
+  "releaseName": "Nova Grade de Horários com Timeline em Tempo Real, Indicador ao Vivo e Divisão por Orientador"
 }
