@@ -1,6 +1,6 @@
 {
-  "version": "1.9.0",
-  "build": 15,
+  "version": "1.10.0",
+  "build": 16,
   "appName": "Kumon Onpoint",
-  "releaseName": "Timeline 07h-22h, dias úteis (sem sábados), exclusão da conta Dev com modal de suporte, e correção de permissões Firestore"
+  "releaseName": "Importação oficial dos 87 alunos da planilha alunos.xlsx com cálculo automático de idades, matérias agrupadas e IDs KUM"
 }

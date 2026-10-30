@@ -417,7 +417,10 @@
               <h2 class="neo-title"><span>👥</span> Alunos Cadastrados</h2>
               <p class="neo-subtitle">Cadastre os alunos, vincule suas matérias e gerencie seus KumonIDs</p>
             </div>
-            <button class="btn-neo btn-primary" id="btnOpenNewStudentModal">➕ Cadastrar Novo Aluno</button>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn-neo btn-warning" id="btnOpenImportStudentsModal" style="background: #FFE600; color: #0B2545;">📥 Importar Planilha (87)</button>
+              <button type="button" class="btn-neo btn-primary" id="btnOpenNewStudentModal">➕ Cadastrar Novo Aluno</button>
+            </div>
           </div>
 
           <!-- Filtros Rápidos de Alunos -->
@@ -1284,6 +1287,9 @@
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button type="button" class="btn-neo btn-warning" id="btnDevOpenImport" style="background: #FFE600; color: #0B2545; justify-content: center; padding: 10px; font-size: 0.92rem; font-weight: 700;">
+            📥 Importar 87 Alunos (alunos.xlsx)
+          </button>
           <a href="mailto:kotundashed.kiomi@gmail.com?subject=Suporte%20Kumon%20Onpoint&body=Ol%C3%A1%20Dev%20Jo%C3%A3o%2C%20preciso%20de%20ajuda%20com%20o%20sistema%20Kumon%20Onpoint%3A%0A%0A" 
              target="_blank" 
              class="btn-neo btn-primary" 
@@ -1298,6 +1304,87 @@
     </div>
   </div>
 
+  
+  <!-- Modal de Importação de Alunos da Planilha (alunos.xlsx) -->
+  <div class="modal-overlay" id="importStudentsModalOverlay">
+    <div class="neo-card modal-card" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column; padding: 24px;">
+      <div class="modal-header" style="margin-bottom: 12px;">
+        <div>
+          <h3 class="neo-title" style="font-size: 1.3rem; display: flex; align-items: center; gap: 8px;">
+            <span>📥</span> Importar Alunos (alunos.xlsx)
+          </h3>
+          <p class="neo-subtitle" style="font-size: 0.85rem; margin-top: 4px;">
+            Cadastre os 87 alunos da planilha do Kumon de forma automática e organizada.
+          </p>
+        </div>
+        <button type="button" class="modal-close" id="btnCloseImportStudentsModal" style="width: 36px; height: 36px; font-size: 1.2rem;">&times;</button>
+      </div>
+
+      <!-- Resumo estatístico -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 14px;">
+        <div style="background: #EBF8FF; border: 2px solid #0B2545; border-radius: 10px; padding: 8px; text-align: center;">
+          <div style="font-size: 1.2rem; font-weight: 900; color: #0077B6;" id="importStatTotal">87</div>
+          <div style="font-size: 0.75rem; font-weight: 700; color: #0B2545;">Alunos Totais</div>
+        </div>
+        <div style="background: #FEF3C7; border: 2px solid #0B2545; border-radius: 10px; padding: 8px; text-align: center;">
+          <div style="font-size: 1.2rem; font-weight: 900; color: #B45309;" id="importStatMulti">19</div>
+          <div style="font-size: 0.75rem; font-weight: 700; color: #0B2545;">2+ Matérias</div>
+        </div>
+        <div style="background: #F3E8FF; border: 2px solid #0B2545; border-radius: 10px; padding: 8px; text-align: center;">
+          <div style="font-size: 1.2rem; font-weight: 900; color: #6D28D9;" id="importStatAdults">7</div>
+          <div style="font-size: 0.75rem; font-weight: 700; color: #0B2545;">Adultos (AD)</div>
+        </div>
+        <div style="background: #DCFCE7; border: 2px solid #0B2545; border-radius: 10px; padding: 8px; text-align: center;">
+          <div style="font-size: 1.2rem; font-weight: 900; color: #15803D;" id="importStatNew">87</div>
+          <div style="font-size: 0.75rem; font-weight: 700; color: #0B2545;">Novos no Banco</div>
+        </div>
+      </div>
+
+      <!-- Regras aplicadas -->
+      <div style="background: #F8FAFC; border: 2px dashed #94A3B8; border-radius: 10px; padding: 10px; margin-bottom: 14px; font-size: 0.82rem; color: #334155;">
+        <strong>📌 Padrões configurados para esta turma:</strong><br>
+        • <strong>Dia de aula:</strong> Segunda-feira (todos)<br>
+        • <strong>Responsável:</strong> "Exemplo" (para menores) | <strong>Telefone:</strong> (00) 00000-0000<br>
+        • <strong>Orientador:</strong> "Exemplo" | <strong>Idades:</strong> calculadas automaticamente pela data de nascimento.
+      </div>
+
+      <!-- Opções e busca na prévia -->
+      <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+        <input type="text" id="importSearchInput" class="neo-input" placeholder="🔍 Filtrar prévia por nome ou matéria..." style="flex: 1; min-width: 180px; padding: 6px 12px; font-size: 0.85rem;">
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 700; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="importCleanTestStudentsCheck" style="transform: scale(1.15);">
+          Limpar alunos de teste (KUM-0001, etc.)
+        </label>
+      </div>
+
+      <!-- Lista de prévia rolável -->
+      <div id="importPreviewList" style="flex: 1; min-height: 180px; max-height: 240px; overflow-y: auto; border: 2px solid #0B2545; border-radius: 10px; padding: 8px; background: #FFF; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px;">
+        <!-- Preenchido dinamicamente via JS -->
+      </div>
+
+      <!-- Barra de progresso durante o cadastro -->
+      <div id="importProgressContainer" style="display: none; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 800; color: #0B2545; margin-bottom: 4px;">
+          <span id="importProgressStatus">Salvando alunos no Firebase...</span>
+          <span id="importProgressPercent">0%</span>
+        </div>
+        <div style="width: 100%; height: 20px; background: #E2E8F0; border: 2px solid #0B2545; border-radius: 10px; overflow: hidden; position: relative;">
+          <div id="importProgressBar" style="width: 0%; height: 100%; background: #10B981; transition: width 0.2s ease;"></div>
+        </div>
+      </div>
+
+      <!-- Rodapé com botões de ação -->
+      <div style="display: flex; gap: 10px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+        <button type="button" class="btn-neo btn-outline" id="btnCancelImportStudents" style="padding: 10px 18px;">
+          Cancelar
+        </button>
+        <button type="button" class="btn-neo btn-primary" id="btnStartImportStudents" style="background: #10B981; color: #FFF; padding: 10px 22px; font-size: 0.95rem;">
+          🚀 Iniciar Cadastro no Firebase (87 Alunos)
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Contêiner oculto para impressão de crachás -->
   <div id="printBatchContainer" style="display: none;"></div>
 
@@ -1307,6 +1394,7 @@
   <script src="assets/html5-qrcode.min.js"></script>
   <script src="firebase-config.js"></script>
   <script src="audio.js"></script>
+  <script src="imported_students.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

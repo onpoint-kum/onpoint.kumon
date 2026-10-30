@@ -11,7 +11,9 @@ const filesToCopy = [
   'app.js',
   'audio.js',
   'firebase-config.js',
-  'version.json'
+  'version.json',
+  'imported_students.js',
+  'imported_students.json'
 ];
 
 const dirsToCopy = ['assets'];

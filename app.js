@@ -1957,6 +1957,7 @@ function updateBadges() {
 // ==========================================================================
 function initUIEventListeners() {
   // Login Google
+  initStudentImport();
   document.getElementById('btnGoogleLogin')?.addEventListener('click', async () => {
     try {
       await KumonFirebase.loginWithGoogle();
