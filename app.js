@@ -13,7 +13,9 @@ const State = {
   liveTimerInterval: null,
   isAudioOn: true,
   isPinUnlocked: false,
-  currentPinInput: ""
+  currentPinInput: "",
+  isProcessingScan: false,
+  recentScans: new Map()
 };
 
 const MASTER_UNIT_KEY = "onpoint-teacher-00#MVN";
@@ -356,17 +358,63 @@ function loadOfflineFallback() {
 }
 
 // ==========================================================================
-// 5. BATIMENTO DE PONTO (ENTRADA / SAÍDA VIA TOTEM OU MANUAL)
+// 5. BATIMENTO DE PONTO (ENTRADA / SAÍDA VIA TOTEM OU MANUAL COM COOLDOWN INTELIGENTE)
 // ==========================================================================
-async function handleCheckInOut(scannedId) {
+async function handleCheckInOut(scannedId, source = 'manual') {
   if (!scannedId) return;
   const cleanId = scannedId.trim().toUpperCase();
+
+  // 1. Trava anti-duplo clique e prevenção de leitura simultânea em múltiplos frames
+  if (State.isProcessingScan) {
+    return;
+  }
+
+  // 2. Cooldown específico por aluno (mínimo 12 segundos entre leituras do mesmo aluno via câmera)
+  const now = Date.now();
+  if (!State.recentScans) State.recentScans = new Map();
+  const lastScan = State.recentScans.get(cleanId) || 0;
+  if (source === 'camera' && (now - lastScan < 12000)) {
+    console.log(`Cooldown ativo para ${cleanId}. Aguarde...`);
+    return;
+  }
+
+  // Trava para processar a leitura atual
+  State.isProcessingScan = true;
+  State.recentScans.set(cleanId, now);
+
+  // Pausa física da câmera para dar feedback visual nítido e evitar leituras consecutivas
+  if (State.html5QrCode && State.isCameraActive) {
+    try {
+      State.html5QrCode.pause(true);
+    } catch(e) {}
+  }
+
+  // Acende o laser verde de sucesso na mira da câmera
+  const guideFrame = document.getElementById('cameraGuide');
+  if (guideFrame) {
+    guideFrame.classList.add('scan-success-flash');
+  }
+
+  const unlockCameraAfterDelay = (ms = 3500) => {
+    setTimeout(() => {
+      State.isProcessingScan = false;
+      if (guideFrame) {
+        guideFrame.classList.remove('scan-success-flash');
+      }
+      if (State.html5QrCode && State.isCameraActive) {
+        try {
+          State.html5QrCode.resume();
+        } catch(e) {}
+      }
+    }, ms);
+  };
 
   // Busca o aluno correspondente
   const student = State.students.find(s => s.kumonId.toUpperCase() === cleanId);
   if (!student) {
     if (window.kumonAudio) window.kumonAudio.playAlert();
     renderFeedbackError(`KumonID "${cleanId}" não encontrado no cadastro.`);
+    unlockCameraAfterDelay(3000);
     return;
   }
 
@@ -381,6 +429,15 @@ async function handleCheckInOut(scannedId) {
   );
 
   if (openRecord) {
+    // PROTEÇÃO ESSENCIAL: Previne que uma entrada recém-feita seja fechada instantaneamente como saída!
+    // Se a entrada foi há menos de 25 segundos, ignora a saída acidental
+    const diffSec = calculateDurationInSeconds(openRecord.checkInTime, timeStr);
+    if (diffSec < 25) {
+      console.warn(`Aluno ${cleanId} entrou há apenas ${diffSec}s. Ignorando saída acidental.`);
+      unlockCameraAfterDelay(2000);
+      return;
+    }
+
     // --- REGISTRAR SAÍDA ---
     const checkInTime = openRecord.checkInTime;
     const durationMinutes = calculateDurationInMinutes(checkInTime, timeStr);
@@ -403,6 +460,7 @@ async function handleCheckInOut(scannedId) {
 
     if (window.kumonAudio) window.kumonAudio.playCheckOut();
     renderFeedbackSuccess(student, 'out', openRecord.checkInTime, timeStr, durationMinutes);
+    unlockCameraAfterDelay(3500);
 
   } else {
     // --- REGISTRAR ENTRADA ---
@@ -415,7 +473,7 @@ async function handleCheckInOut(scannedId) {
       checkOutTime: null,
       durationMinutes: null,
       status: 'in',
-      teacherName: student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'Orientadora')
+      teacherName: student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'Orientador(a)')
     };
 
     if (KumonFirebase.db) {
@@ -434,6 +492,7 @@ async function handleCheckInOut(scannedId) {
 
     if (window.kumonAudio) window.kumonAudio.playCheckIn();
     renderFeedbackSuccess(student, 'in', timeStr, null, null);
+    unlockCameraAfterDelay(3500);
   }
 }
 
@@ -587,8 +646,8 @@ async function startCamera() {
       { facingMode: "environment" },
       config,
       (decodedText) => {
-        // Leitura bem-sucedida do QR Code
-        handleCheckInOut(decodedText);
+        // Leitura bem-sucedida do QR Code da câmera com cooldown
+        handleCheckInOut(decodedText, 'camera');
       },
       () => {
         // Scanning frame erro silencioso normal
@@ -1249,6 +1308,11 @@ function renderHistoryTable() {
         <td>${a.checkOutTime || '-'}</td>
         <td><strong>${dur}</strong></td>
         <td>${statusBadge}</td>
+        <td style="text-align: right;">
+          <button class="btn-neo btn-outline" style="padding: 3px 8px; font-size: 0.75rem; color: var(--kumon-red);" onclick="deleteAttendanceRecord('${a.id}')" title="Excluir Registro de Ponto">
+            🗑️
+          </button>
+        </td>
       </tr>
     `;
   }).join('');
@@ -1659,9 +1723,31 @@ function calculateDurationInMinutes(startTimeStr, endTimeStr) {
   return diff;
 }
 
+function calculateDurationInSeconds(startTimeStr, endTimeStr) {
+  if (!startTimeStr || !endTimeStr) return 0;
+  const [h1, m1, s1 = 0] = startTimeStr.split(':').map(Number);
+  const [h2, m2, s2 = 0] = endTimeStr.split(':').map(Number);
+  let diff = (h2 * 3600 + m2 * 60 + s2) - (h1 * 3600 + m1 * 60 + s1);
+  if (diff < 0) diff += 24 * 3600;
+  return diff;
+}
+
+async function deleteAttendanceRecord(attendanceId) {
+  if (!confirm('Deseja excluir este registro de frequência?')) return;
+  if (KumonFirebase.db && attendanceId) {
+    await KumonFirebase.db.collection('kumon_attendance').doc(attendanceId).delete();
+  } else {
+    State.attendances = State.attendances.filter(a => a.id !== attendanceId);
+    renderLiveStudents();
+    renderHistoryTable();
+    updateBadges();
+  }
+}
+
 // Expõe funções necessárias para cliques inline no HTML
 window.openEditStudentModal = openEditStudentModal;
 window.openTeacherMiniProfileModal = openTeacherMiniProfileModal;
 window.viewStudentCard = viewStudentCard;
 window.confirmDeleteStudent = confirmDeleteStudent;
 window.handleCheckInOut = handleCheckInOut;
+window.deleteAttendanceRecord = deleteAttendanceRecord;

@@ -1,6 +1,6 @@
 {
-  "version": "1.1.1",
-  "build": 3,
+  "version": "1.1.2",
+  "build": 4,
   "appName": "Kumon Onpoint",
-  "releaseName": "Remoção de Professores Mock & Ajustes Finais"
+  "releaseName": "Cooldown Inteligente do Scanner QR & Exclusão de Frequência"
 }
