@@ -316,6 +316,9 @@ body {
 }
 
 .brand-badge {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
   background: var(--kumon-yellow);
   color: var(--kumon-border);
   font-size: 0.68rem;
@@ -966,12 +969,16 @@ body {
 }
 
 .subject-badge {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
   font-size: 0.78rem;
   font-weight: 800;
   padding: 3px 10px;
   border-radius: var(--radius-full);
   border: 1.5px solid var(--kumon-border);
   box-shadow: 1px 1px 0px var(--kumon-border);
+  margin: 2px 2px;
 }
 
 .time-row {
@@ -1890,4 +1897,138 @@ body {
     gap: 20px !important;
     padding: 10px !important;
   }
+}
+
+/* ==========================================================================
+   ESTILOS: POPUP TAREFA DE CASA, PERFIL DO ALUNO E AJUSTES DE TABELA
+   ========================================================================== */
+#studentsTable {
+  min-width: 960px;
+}
+
+#studentsTable th {
+  white-space: nowrap;
+}
+
+.student-name-cell {
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.student-name-cell:hover strong {
+  color: var(--kumon-blue-dark);
+  text-decoration: underline;
+}
+
+/* Opções do Popup de Lição de Casa */
+.homework-option-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 10px;
+  background: #FFFFFF;
+  border: var(--border-thick);
+  border-radius: var(--radius-sm);
+  box-shadow: 3px 3px 0px var(--kumon-border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.homework-option-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px var(--kumon-border);
+}
+
+.homework-option-btn.active {
+  background: var(--opt-bg, #ECFDF5) !important;
+  border-color: var(--kumon-border) !important;
+  border-width: 3px !important;
+  box-shadow: 4px 4px 0px var(--kumon-border) !important;
+  transform: translate(-2px, -2px);
+}
+
+.homework-opt-icon {
+  font-size: 1.8rem;
+  margin-bottom: 4px;
+}
+
+.homework-opt-title {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--kumon-navy);
+}
+
+.homework-opt-desc {
+  font-size: 0.72rem;
+  color: var(--kumon-gray-muted);
+  margin-top: 2px;
+}
+
+/* Card do Histórico Diário no Perfil do Aluno */
+.history-day-card {
+  background: #FFFFFF;
+  border: var(--border-thin);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  box-shadow: 2px 2px 0px var(--kumon-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: background 0.15s ease;
+}
+
+.history-day-card:hover {
+  background: #F8FAFC;
+}
+
+.history-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-day-date {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 0.92rem;
+  color: var(--kumon-navy);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.history-homework-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  font-size: 0.76rem;
+  font-weight: 800;
+  border: 1.5px solid var(--kumon-border);
+  white-space: nowrap;
+}
+
+.history-day-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.82rem;
+  color: var(--kumon-navy);
+  flex-wrap: wrap;
+}
+
+.history-day-note {
+  background: var(--kumon-soft-bg);
+  border-left: 3.5px solid var(--kumon-blue);
+  border-radius: 0 4px 4px 0;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  color: var(--kumon-navy);
+  margin-top: 2px;
 }

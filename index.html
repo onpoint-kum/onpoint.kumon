@@ -364,17 +364,17 @@
           </div>
 
           <div class="table-responsive">
-            <table class="neo-table">
+            <table class="neo-table" id="studentsTable">
               <thead>
                 <tr>
-                  <th>Avatar</th>
-                  <th>Nome do Aluno</th>
-                  <th>KumonID</th>
-                  <th>Disciplinas</th>
-                  <th>Dias de Aula</th>
-                  <th>Reposições</th>
-                  <th>Contato</th>
-                  <th style="text-align: right;">Ações</th>
+                  <th style="width: 50px; text-align: center;">Avatar</th>
+                  <th style="min-width: 200px;">Nome do Aluno</th>
+                  <th style="min-width: 95px;">KumonID</th>
+                  <th style="min-width: 150px;">Disciplinas</th>
+                  <th style="min-width: 130px;">Dias de Aula</th>
+                  <th style="min-width: 140px;">Reposições</th>
+                  <th style="min-width: 150px;">Contato</th>
+                  <th style="text-align: right; min-width: 180px;">Ações</th>
                 </tr>
               </thead>
               <tbody id="studentsTableBody">
@@ -446,6 +446,7 @@
                   <th>Entrada</th>
                   <th>Saída</th>
                   <th>Permanência</th>
+                  <th>Tarefa de Casa</th>
                   <th>Status</th>
                   <th style="text-align: right;">Ações</th>
                 </tr>
@@ -832,6 +833,168 @@
         <button type="button" class="btn-neo btn-outline" id="btnPinLogout" style="font-size: 0.82rem; padding: 6px 14px;">
           🚪 Sair da Conta
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: POPUP DE ATIVIDADE DE CASA NA ENTRADA (CHECK-IN)
+       ========================================================================== -->
+  <div class="neo-modal-overlay" id="homeworkModalOverlay">
+    <div class="neo-modal" style="max-width: 480px;">
+      <div class="neo-card-header" style="margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.8rem;" id="homeworkStudentAvatar">👦</span>
+          <div>
+            <h3 class="neo-title" style="font-size: 1.15rem; margin-bottom: 2px;">
+              📝 Tarefa de Casa
+            </h3>
+            <span style="font-size: 0.85rem; color: var(--kumon-blue-dark); font-weight: 700;" id="homeworkStudentName">
+              Aluno
+            </span>
+          </div>
+        </div>
+        <button class="btn-neo btn-outline" id="btnCloseHomeworkModal" style="padding: 4px 10px; font-size: 1.1rem;">✕</button>
+      </div>
+
+      <p style="font-size: 0.9rem; font-weight: 700; color: var(--kumon-navy); margin-bottom: 12px;">
+        Como foi a atividade de casa trazida hoje?
+      </p>
+
+      <!-- 4 Opções em Grid Neo-Brutalista -->
+      <div class="homework-options-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
+        <button type="button" class="homework-option-btn active" data-status="Fez tudo" style="--opt-color: #10B981; --opt-bg: #ECFDF5;">
+          <span class="homework-opt-icon">✅</span>
+          <span class="homework-opt-title">Fez tudo</span>
+          <span class="homework-opt-desc">Trouxe 100% feita</span>
+        </button>
+
+        <button type="button" class="homework-option-btn" data-status="Fez metade" style="--opt-color: #F59E0B; --opt-bg: #FFFBEB;">
+          <span class="homework-opt-icon">⚠️</span>
+          <span class="homework-opt-title">Fez metade</span>
+          <span class="homework-opt-desc">Incompleta / Parte</span>
+        </button>
+
+        <button type="button" class="homework-option-btn" data-status="Não fez" style="--opt-color: #EF4444; --opt-bg: #FEF2F2;">
+          <span class="homework-opt-icon">❌</span>
+          <span class="homework-opt-title">Não fez</span>
+          <span class="homework-opt-desc">Esqueceu ou não fez</span>
+        </button>
+
+        <button type="button" class="homework-option-btn" data-status="Não teve" style="--opt-color: #64748B; --opt-bg: #F8FAFC;">
+          <span class="homework-opt-icon">➖</span>
+          <span class="homework-opt-title">Não teve</span>
+          <span class="homework-opt-desc">Sem lição programada</span>
+        </button>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label class="form-label" for="homeworkNoteInput">Observação (Opcional)</label>
+        <input type="text" id="homeworkNoteInput" class="neo-input" placeholder="Ex: Teve dúvida no bloco B, fez até a pág. 12..." style="width: 100%;">
+      </div>
+
+      <input type="hidden" id="homeworkAttendanceId" value="">
+      <input type="hidden" id="homeworkStudentDocId" value="">
+      <input type="hidden" id="homeworkSelectedStatus" value="Fez tudo">
+
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+        <button type="button" class="btn-neo btn-outline" id="btnSkipHomework">
+          Pular
+        </button>
+        <button type="button" class="btn-neo btn-success" id="btnSaveHomework" style="flex: 1;">
+          💾 Salvar Registro de Entrada
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: PERFIL DO ALUNO & HISTÓRICO DIÁRIO COMPLETO
+       ========================================================================== -->
+  <div class="neo-modal-overlay" id="studentProfileModalOverlay">
+    <div class="neo-modal" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
+      <!-- Header Fixo -->
+      <div class="neo-card-header" style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: var(--border-thin);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div id="profStudentAvatar" style="font-size: 2.4rem; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; background: #fff; border: var(--border-thick); border-radius: var(--radius-sm); box-shadow: 2px 2px 0 var(--kumon-border);">👦</div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <h3 class="neo-title" id="profStudentName" style="font-size: 1.25rem; margin-bottom: 0;">Nome do Aluno</h3>
+              <span id="profStudentAdultBadge"></span>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px; flex-wrap: wrap;">
+              <span class="brand-badge" id="profStudentKumonId" style="background: var(--kumon-soft-bg); color: var(--kumon-blue-dark); font-size: 0.8rem; font-weight: 800;">KUM-0000</span>
+              <span style="font-size: 0.8rem; color: var(--kumon-gray-muted);" id="profStudentAge"></span>
+              <span class="brand-badge" id="profStudentOrientador" style="background: #FEF3C7; color: #92400E; font-size: 0.75rem;">Orientador</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn-neo btn-outline" id="btnCloseStudentProfileModal" style="padding: 4px 10px; font-size: 1.1rem;">✕</button>
+      </div>
+
+      <!-- Conteúdo Scrollável -->
+      <div style="overflow-y: auto; padding-right: 4px; flex: 1;">
+        <!-- Informações e Cards Rápidos -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 16px;">
+          <div style="background: var(--kumon-soft-bg); border: var(--border-thin); border-radius: var(--radius-sm); padding: 10px 12px;">
+            <div style="font-size: 0.75rem; font-weight: 800; color: var(--kumon-navy); text-transform: uppercase;">📚 Matérias</div>
+            <div id="profStudentSubjects" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;"></div>
+          </div>
+
+          <div style="background: var(--kumon-soft-bg); border: var(--border-thin); border-radius: var(--radius-sm); padding: 10px 12px;">
+            <div style="font-size: 0.75rem; font-weight: 800; color: var(--kumon-navy); text-transform: uppercase;">📅 Dias de Aula</div>
+            <div id="profStudentDays" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;"></div>
+          </div>
+
+          <div style="background: #FFFBEB; border: 2px dashed #F59E0B; border-radius: var(--radius-sm); padding: 10px 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.75rem; font-weight: 800; color: #92400E; text-transform: uppercase;">🔄 Reposições</span>
+              <button class="btn-neo btn-outline" id="profBtnAddReplacement" style="padding: 1px 6px; font-size: 0.72rem; font-weight: 800;">+1 Repor</button>
+            </div>
+            <div id="profStudentReplacements" style="font-size: 1.1rem; font-weight: 800; color: #78350F; margin-top: 4px;">0 pendentes</div>
+          </div>
+
+          <div style="background: var(--kumon-soft-bg); border: var(--border-thin); border-radius: var(--radius-sm); padding: 10px 12px;">
+            <div style="font-size: 0.75rem; font-weight: 800; color: var(--kumon-navy); text-transform: uppercase;">📱 Contato</div>
+            <div id="profStudentContact" style="font-size: 0.85rem; font-weight: 700; margin-top: 4px; color: var(--kumon-navy);"></div>
+          </div>
+        </div>
+
+        <!-- Seção: Histórico Diário de Presença & Lição de Casa -->
+        <div style="margin-top: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <h4 style="font-family: var(--font-heading); font-size: 1.05rem; color: var(--kumon-navy); margin-bottom: 2px;">
+                📋 Histórico Diário (Presença & Lição de Casa)
+              </h4>
+              <div style="font-size: 0.78rem; color: var(--kumon-gray-muted);">
+                Registro dia a dia com horário de entrada/saída, tempo em sala e status da tarefa.
+              </div>
+            </div>
+            <span class="brand-badge" id="profHistoryCountBadge" style="background: var(--kumon-blue); color: #fff; font-size: 0.75rem;">
+              0 registros
+            </span>
+          </div>
+
+          <div id="profStudentHistoryList" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Preenchido via app.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Rodapé com Ações -->
+      <div style="margin-top: 14px; padding-top: 10px; border-top: var(--border-thin); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <button class="btn-neo btn-outline" id="profBtnViewCard" style="font-size: 0.85rem; padding: 6px 12px;">
+          🪪 Ver Carteirinha
+        </button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-neo btn-outline" id="profBtnEditStudent" style="font-size: 0.85rem; padding: 6px 12px;">
+            ✏️ Editar Aluno
+          </button>
+          <button class="btn-neo btn-primary" id="profBtnCloseBottom" style="font-size: 0.85rem; padding: 6px 14px;">
+            Fechar
+          </button>
+        </div>
       </div>
     </div>
   </div>

@@ -473,17 +473,21 @@ async function handleCheckInOut(scannedId, source = 'manual') {
       checkOutTime: null,
       durationMinutes: null,
       status: 'in',
-      teacherName: student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'Orientador(a)')
+      teacherName: student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'Orientador(a)'),
+      homeworkStatus: 'Pendente',
+      homeworkNote: ''
     };
 
+    let recordId = 'att-' + Date.now();
     if (KumonFirebase.db) {
       const docRef = await KumonFirebase.db.collection('kumon_attendance').add({
         ...newRecord,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      newRecord.id = docRef.id;
+      recordId = docRef.id;
+      newRecord.id = recordId;
     } else {
-      newRecord.id = 'att-' + Date.now();
+      newRecord.id = recordId;
       State.attendances.push(newRecord);
       renderLiveStudents();
       renderHistoryTable();
@@ -493,6 +497,11 @@ async function handleCheckInOut(scannedId, source = 'manual') {
     if (window.kumonAudio) window.kumonAudio.playCheckIn();
     renderFeedbackSuccess(student, 'in', timeStr, null, null);
     unlockCameraAfterDelay(3500);
+
+    // Abre o popup de lição/atividade de casa imediatamente!
+    setTimeout(() => {
+      openHomeworkCheckInModal(student, recordId);
+    }, 400);
   }
 }
 
@@ -956,10 +965,10 @@ function renderStudentsList() {
       const subjObj = State.subjects.find(sub => sub.name === s);
       const bg = subjObj ? subjObj.color : '#E2E8F0';
       return `<span class="subject-badge" style="background:${bg};">${s}</span>`;
-    }).join(' ');
+    }).join('');
 
     const daysBadges = (st.classDays && st.classDays.length > 0)
-      ? st.classDays.map(d => `<span class="brand-badge" style="background:#E0F2FE; color:#0369A1; font-size:0.72rem; padding:1px 6px;">${d}</span>`).join(' ')
+      ? st.classDays.map(d => `<span class="brand-badge" style="background:#E0F2FE; color:#0369A1; font-size:0.72rem; padding:2px 7px;">${d}</span>`).join(' ')
       : '<span style="color:var(--kumon-gray-muted); font-size:0.75rem;">Não informado</span>';
 
     const replacements = st.replacementClasses || 0;
@@ -973,44 +982,51 @@ function renderStudentsList() {
       : '';
 
     const contactHtml = st.isAdult
-      ? `<div>${st.parentPhone || '-'}</div><span style="font-size:0.72rem; color:var(--kumon-gray-muted);">Aluno Adulto</span>`
-      : `<div>${st.parentName || '-'}</div><div style="font-size:0.78rem; color:var(--kumon-gray-muted);">${st.parentPhone || ''}</div>`;
+      ? `<div style="font-weight:700; white-space:nowrap;">${st.parentPhone || '-'}</div><span class="brand-badge" style="background:#E0E7FF; color:#3730A3; font-size:0.68rem; margin-top:2px;">WhatsApp Aluno</span>`
+      : `<div style="font-weight:700;">${st.parentName || '-'}</div><div style="font-size:0.78rem; color:var(--kumon-gray-muted); white-space:nowrap;">${st.parentPhone || ''}</div>`;
 
     return `
       <tr>
         <td style="font-size: 1.8rem; width: 50px; text-align: center;">${st.avatar || (st.isAdult ? '🧑' : '👦')}</td>
         <td>
-          <strong>${st.name}</strong> ${adultBadge}
-          ${st.age ? `<span style="font-size:0.78rem; color:var(--kumon-gray-muted);"> (${st.age} anos)</span>` : ''}
-          <div style="margin-top: 3px;">
-            <span class="brand-badge" style="background:var(--kumon-soft-bg); border:1.5px solid var(--kumon-border); font-size:0.74rem; color:var(--kumon-navy); padding: 1px 7px;">
-              👩‍🏫 Orientador: ${orientadorNome}
+          <div class="student-name-cell" onclick="openStudentProfileModal('${st.id || st.kumonId}')" title="Clique para abrir Perfil e Histórico">
+            <strong style="font-size: 0.95rem; color: var(--kumon-navy);">${st.name}</strong> ${adultBadge}
+            ${st.age ? `<span style="font-size:0.78rem; color:var(--kumon-gray-muted); white-space:nowrap;"> (${st.age} anos)</span>` : ''}
+          </div>
+          <div style="margin-top: 4px;">
+            <span class="brand-badge" style="background:var(--kumon-soft-bg); border:1.5px solid var(--kumon-border); font-size:0.72rem; color:var(--kumon-navy); padding: 2px 8px; white-space: nowrap;">
+              👩‍🏫 ${orientadorNome}
             </span>
           </div>
         </td>
-        <td><strong style="color:var(--kumon-blue-dark);">${st.kumonId}</strong></td>
-        <td>${subjectsBadges || '<span style="color:#94a3b8;">Nenhuma</span>'}</td>
-        <td>${daysBadges}</td>
+        <td><strong style="color:var(--kumon-blue-dark); font-size: 0.92rem; white-space: nowrap;">${st.kumonId}</strong></td>
+        <td><div style="display: flex; flex-wrap: wrap; gap: 3px;">${subjectsBadges || '<span style="color:#94a3b8; font-size:0.8rem;">Nenhuma</span>'}</div></td>
+        <td><div style="display: flex; flex-wrap: wrap; gap: 4px;">${daysBadges}</div></td>
         <td>
           <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
             ${replacementBadge}
-            <button class="btn-neo btn-outline" style="padding: 1px 7px; font-size: 0.75rem; font-weight: 800;" onclick="quickAddReplacement('${st.id || st.kumonId}')" title="Adicionar +1 aula de reposição por falta">
+            <button class="btn-neo btn-outline" style="padding: 2px 8px; font-size: 0.75rem; font-weight: 800; white-space: nowrap;" onclick="quickAddReplacement('${st.id || st.kumonId}')" title="Adicionar +1 aula de reposição por falta">
               +1 Repor
             </button>
-            ${replacements > 0 ? `<button class="btn-neo btn-outline" style="padding: 1px 7px; font-size: 0.75rem; color:#166534;" onclick="quickUseReplacement('${st.id || st.kumonId}')" title="Concluir aula de reposição">✓</button>` : ''}
+            ${replacements > 0 ? `<button class="btn-neo btn-outline" style="padding: 2px 7px; font-size: 0.75rem; color:#166534; font-weight: 800;" onclick="quickUseReplacement('${st.id || st.kumonId}')" title="Concluir aula de reposição">✓</button>` : ''}
           </div>
         </td>
         <td>${contactHtml}</td>
         <td style="text-align: right; white-space: nowrap;">
-          <button class="btn-neo btn-outline" style="padding: 4px 8px; font-size: 0.8rem;" onclick="openEditStudentModal('${st.id || st.kumonId}')" title="Editar Aluno e Orientador">
-            ✏️
-          </button>
-          <button class="btn-neo btn-outline" style="padding: 4px 10px; font-size: 0.8rem;" onclick="viewStudentCard('${st.kumonId}')" title="Ver Carteirinha">
-            🪪 Carteirinha
-          </button>
-          <button class="btn-neo btn-outline" style="padding: 4px 8px; font-size: 0.8rem; color: var(--kumon-red);" onclick="confirmDeleteStudent('${st.id || st.kumonId}', '${st.name}')" title="Remover Aluno">
-            🗑️
-          </button>
+          <div style="display: inline-flex; gap: 4px; align-items: center;">
+            <button class="btn-neo btn-primary" style="padding: 5px 9px; font-size: 0.78rem; font-weight: 800; white-space: nowrap;" onclick="openStudentProfileModal('${st.id || st.kumonId}')" title="Ver Perfil Completo e Histórico de Lições">
+              👤 Histórico
+            </button>
+            <button class="btn-neo btn-outline" style="padding: 5px 8px; font-size: 0.8rem;" onclick="openEditStudentModal('${st.id || st.kumonId}')" title="Editar Aluno e Orientador">
+              ✏️
+            </button>
+            <button class="btn-neo btn-outline" style="padding: 5px 8px; font-size: 0.8rem;" onclick="viewStudentCard('${st.kumonId}')" title="Ver Carteirinha">
+              🪪
+            </button>
+            <button class="btn-neo btn-outline" style="padding: 5px 8px; font-size: 0.8rem; color: var(--kumon-red);" onclick="confirmDeleteStudent('${st.id || st.kumonId}', '${st.name}')" title="Remover Aluno">
+              🗑️
+            </button>
+          </div>
         </td>
       </tr>
     `;
@@ -1317,6 +1333,216 @@ function viewStudentCard(kumonId) {
 }
 
 // ==========================================================================
+// POPUP DE ATIVIDADE DE CASA NA ENTRADA (CHECK-IN)
+// ==========================================================================
+function openHomeworkCheckInModal(student, attendanceRecordId) {
+  const modal = document.getElementById('homeworkModalOverlay');
+  if (!modal) return;
+
+  document.getElementById('homeworkStudentAvatar').textContent = student.avatar || (student.isAdult ? '🧑' : '👦');
+  document.getElementById('homeworkStudentName').textContent = `${student.name} (${student.kumonId})`;
+  document.getElementById('homeworkAttendanceId').value = attendanceRecordId;
+  document.getElementById('homeworkStudentDocId').value = student.id || student.kumonId;
+  document.getElementById('homeworkNoteInput').value = '';
+  
+  // Opção padrão: "Fez tudo"
+  document.getElementById('homeworkSelectedStatus').value = 'Fez tudo';
+  document.querySelectorAll('.homework-option-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-status') === 'Fez tudo');
+  });
+
+  modal.classList.add('active');
+}
+
+function closeHomeworkModal() {
+  const modal = document.getElementById('homeworkModalOverlay');
+  if (modal) modal.classList.remove('active');
+}
+
+async function saveHomeworkStatus(forcedStatus = null) {
+  const attendanceId = document.getElementById('homeworkAttendanceId').value;
+  const status = forcedStatus || document.getElementById('homeworkSelectedStatus').value || 'Fez tudo';
+  const note = document.getElementById('homeworkNoteInput').value.trim();
+
+  if (KumonFirebase.db && attendanceId && !attendanceId.startsWith('att-')) {
+    await KumonFirebase.db.collection('kumon_attendance').doc(attendanceId).update({
+      homeworkStatus: status,
+      homeworkNote: note,
+      homeworkUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } else {
+    const rec = State.attendances.find(a => a.id === attendanceId);
+    if (rec) {
+      rec.homeworkStatus = status;
+      rec.homeworkNote = note;
+      renderHistoryTable();
+    }
+  }
+
+  closeHomeworkModal();
+  if (window.kumonAudio) window.kumonAudio.playClick();
+}
+
+// ==========================================================================
+// PERFIL DO ALUNO & HISTÓRICO DIÁRIO COMPLETO
+// ==========================================================================
+let currentProfileStudent = null;
+
+async function openStudentProfileModal(studentDocId) {
+  const student = State.students.find(s => s.id === studentDocId || s.kumonId === studentDocId);
+  if (!student) return;
+  currentProfileStudent = student;
+
+  const modal = document.getElementById('studentProfileModalOverlay');
+  if (!modal) return;
+
+  // Preenche Cabeçalho do Perfil
+  document.getElementById('profStudentAvatar').textContent = student.avatar || (student.isAdult ? '🧑' : '👦');
+  document.getElementById('profStudentName').textContent = student.name;
+  document.getElementById('profStudentKumonId').textContent = student.kumonId;
+  document.getElementById('profStudentAge').textContent = student.age ? `${student.age} anos` : '';
+
+  const adultBadgeEl = document.getElementById('profStudentAdultBadge');
+  if (adultBadgeEl) {
+    adultBadgeEl.innerHTML = student.isAdult
+      ? `<span class="brand-badge" style="background:#E0E7FF; color:#3730A3; font-size:0.75rem;">🧑 ALUNO ADULTO</span>`
+      : '';
+  }
+
+  const orientadorEl = document.getElementById('profStudentOrientador');
+  if (orientadorEl) {
+    orientadorEl.textContent = `Orientador(a): ${student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'A Definir')}`;
+  }
+
+  // Matérias
+  const subjectsEl = document.getElementById('profStudentSubjects');
+  if (subjectsEl) {
+    subjectsEl.innerHTML = (student.subjects && student.subjects.length > 0)
+      ? student.subjects.map(s => {
+          const subObj = State.subjects.find(sub => sub.name === s);
+          const bg = subObj ? subObj.color : '#E0F2FE';
+          return `<span class="subject-badge" style="background:${bg};">${s}</span>`;
+        }).join('')
+      : '<span style="color:var(--kumon-gray-muted); font-size:0.78rem;">Nenhuma matéria</span>';
+  }
+
+  // Dias de Aula
+  const daysEl = document.getElementById('profStudentDays');
+  if (daysEl) {
+    daysEl.innerHTML = (student.classDays && student.classDays.length > 0)
+      ? student.classDays.map(d => `<span class="brand-badge" style="background:#E0F2FE; color:#0369A1; font-size:0.75rem;">${d}</span>`).join(' ')
+      : '<span style="color:var(--kumon-gray-muted); font-size:0.78rem;">Não informado</span>';
+  }
+
+  // Reposições
+  const repCount = student.replacementClasses || 0;
+  const repEl = document.getElementById('profStudentReplacements');
+  if (repEl) {
+    repEl.textContent = repCount > 0 ? `${repCount} aula${repCount > 1 ? 's' : ''} pendente${repCount > 1 ? 's' : ''}` : 'Nenhuma reposição pendente';
+  }
+
+  // Contato
+  const contactEl = document.getElementById('profStudentContact');
+  if (contactEl) {
+    const phone = student.parentPhone || '';
+    const cleanPhone = phone.replace(/\D/g, '');
+    const waLink = cleanPhone ? `<div style="margin-top:4px;"><a href="https://wa.me/55${cleanPhone}" target="_blank" class="brand-badge" style="background:#22C55E; color:#fff; text-decoration:none; padding:3px 8px;">💬 Chamar no WhatsApp</a></div>` : '';
+    
+    if (student.isAdult) {
+      contactEl.innerHTML = `<div>${phone || 'Sem telefone cadastrado'}</div>${waLink}`;
+    } else {
+      contactEl.innerHTML = `<div>${student.parentName || 'Responsável não informado'}</div><div style="font-size:0.8rem; color:var(--kumon-gray-muted);">${phone}</div>${waLink}`;
+    }
+  }
+
+  // Carrega o Histórico Diário Completo
+  await renderStudentDailyHistory(student.kumonId);
+
+  modal.classList.add('active');
+}
+
+async function renderStudentDailyHistory(kumonId) {
+  const container = document.getElementById('profStudentHistoryList');
+  const badgeCount = document.getElementById('profHistoryCountBadge');
+  if (!container) return;
+
+  container.innerHTML = '<div style="text-align:center; padding:16px; color:var(--kumon-gray-muted);">Carregando histórico...</div>';
+
+  let historyRecords = [];
+  if (KumonFirebase.db) {
+    try {
+      const snap = await KumonFirebase.db.collection('kumon_attendance')
+        .where('kumonId', '==', kumonId)
+        .get();
+      historyRecords = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (e) {
+      console.warn('Erro ao buscar histórico do Firebase:', e);
+      historyRecords = State.attendances.filter(a => a.kumonId === kumonId);
+    }
+  } else {
+    historyRecords = State.attendances.filter(a => a.kumonId === kumonId);
+  }
+
+  // Ordenação: data decrescente e hora de entrada decrescente
+  historyRecords.sort((a, b) => {
+    const dateDiff = (b.date || '').localeCompare(a.date || '');
+    if (dateDiff !== 0) return dateDiff;
+    return (b.checkInTime || '').localeCompare(a.checkInTime || '');
+  });
+
+  if (badgeCount) {
+    badgeCount.textContent = `${historyRecords.length} registro${historyRecords.length !== 1 ? 's' : ''}`;
+  }
+
+  if (historyRecords.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 24px; background: #F8FAFC; border: var(--border-thin); border-radius: var(--radius-sm); color: var(--kumon-gray-muted);">
+        Nenhum registro de ponto encontrado para este aluno ainda.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = historyRecords.map(rec => {
+    const hwStatus = rec.homeworkStatus || 'Não informado';
+    let hwBadge = '';
+    if (hwStatus === 'Fez tudo') {
+      hwBadge = `<span class="history-homework-badge" style="background:#DCFCE7; color:#166534;">✅ Fez tudo</span>`;
+    } else if (hwStatus === 'Fez metade') {
+      hwBadge = `<span class="history-homework-badge" style="background:#FEF3C7; color:#92400E;">⚠️ Fez metade</span>`;
+    } else if (hwStatus === 'Não fez') {
+      hwBadge = `<span class="history-homework-badge" style="background:#FEE2E2; color:#991B1B;">❌ Não fez</span>`;
+    } else if (hwStatus === 'Não teve') {
+      hwBadge = `<span class="history-homework-badge" style="background:#F1F5F9; color:#475569;">➖ Não teve</span>`;
+    } else {
+      hwBadge = `<span class="history-homework-badge" style="background:#F8FAFC; color:#64748B;">❓ ${hwStatus}</span>`;
+    }
+
+    const durStr = rec.durationMinutes ? `${rec.durationMinutes} min de aula` : (rec.status === 'in' ? 'Em sala no momento' : '-');
+    const noteHtml = rec.homeworkNote ? `<div class="history-day-note">💬 <strong>Observação:</strong> ${rec.homeworkNote}</div>` : '';
+
+    return `
+      <div class="history-day-card">
+        <div class="history-day-header">
+          <div class="history-day-date">
+            📅 ${formatDisplayDate(rec.date)}
+            <span style="font-size:0.78rem; font-weight:600; color:var(--kumon-gray-muted);">(${rec.checkInTime || '-'} às ${rec.checkOutTime || 'Presente'})</span>
+          </div>
+          <div>${hwBadge}</div>
+        </div>
+
+        <div class="history-day-meta">
+          <div>⏱️ <strong>Permanência:</strong> ${durStr}</div>
+          <div>👩‍🏫 <strong>Orientador:</strong> ${rec.teacherName || 'Orientador(a)'}</div>
+        </div>
+
+        ${noteHtml}
+      </div>
+    `;
+  }).join('');
+}
+
+// ==========================================================================
 // 10. GERENCIAMENTO DE MATÉRIAS (PROFESSORES ADICIONAM AO SISTEMA)
 // ==========================================================================
 function renderSubjects() {
@@ -1439,7 +1665,7 @@ function renderHistoryTable() {
   if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="8" style="text-align: center; padding: 24px; color: var(--kumon-gray-muted);">
+        <td colspan="10" style="text-align: center; padding: 24px; color: var(--kumon-gray-muted);">
           Nenhum registro de ponto encontrado para hoje.
         </td>
       </tr>
@@ -1459,6 +1685,21 @@ function renderHistoryTable() {
       return `<span class="subject-badge" style="background:${bg}; font-size:0.7rem;">${s}</span>`;
     }).join(' ');
 
+    const hwStatus = a.homeworkStatus || 'Não informado';
+    let hwBadge = '';
+    if (hwStatus === 'Fez tudo') {
+      hwBadge = `<span class="history-homework-badge" style="background:#DCFCE7; color:#166534;">✅ Fez tudo</span>`;
+    } else if (hwStatus === 'Fez metade') {
+      hwBadge = `<span class="history-homework-badge" style="background:#FEF3C7; color:#92400E;">⚠️ Fez metade</span>`;
+    } else if (hwStatus === 'Não fez') {
+      hwBadge = `<span class="history-homework-badge" style="background:#FEE2E2; color:#991B1B;">❌ Não fez</span>`;
+    } else if (hwStatus === 'Não teve') {
+      hwBadge = `<span class="history-homework-badge" style="background:#F1F5F9; color:#475569;">➖ Não teve</span>`;
+    } else {
+      hwBadge = `<span class="history-homework-badge" style="background:#F8FAFC; color:#64748B;">${hwStatus}</span>`;
+    }
+    const noteBadge = a.homeworkNote ? `<div style="font-size:0.75rem; color:var(--kumon-gray-muted); margin-top:2px;">💬 ${a.homeworkNote}</div>` : '';
+
     return `
       <tr>
         <td><strong>${formatDisplayDate(a.date)}</strong></td>
@@ -1468,6 +1709,7 @@ function renderHistoryTable() {
         <td>${a.checkInTime}</td>
         <td>${a.checkOutTime || '-'}</td>
         <td><strong>${dur}</strong></td>
+        <td><div>${hwBadge}${noteBadge}</div></td>
         <td>${statusBadge}</td>
         <td style="text-align: right;">
           <button class="btn-neo btn-outline" style="padding: 3px 8px; font-size: 0.75rem; color: var(--kumon-red);" onclick="deleteAttendanceRecord('${a.id}')" title="Excluir Registro de Ponto">
@@ -1485,9 +1727,13 @@ function exportHistoryCSV() {
     return;
   }
 
-  let csv = '\uFEFFData;KumonID;Aluno;Disciplinas;Entrada;Saída;Tempo (Minutos);Status;Orientador\n';
+  let csv = '\uFEFFData;KumonID;Aluno;Disciplinas;Entrada;Saída;Tempo (Minutos);Tarefa de Casa;Observação Lição;Status;Orientador\n';
   State.attendances.forEach(a => {
     const subs = (a.subjects || []).join(', ');
+    const hw = a.homeworkStatus || '-';
+    const note = (a.homeworkNote || '').replace(/;/g, ',');
+    csv += `${a.date};${a.kumonId};"${a.studentName}";"${subs}";${a.checkInTime};${a.checkOutTime || ''};${a.durationMinutes || ''};"${hw}";"${note}";${a.status};"${a.teacherName || ''}"\n`;
+  });
     csv += `"${a.date}";"${a.kumonId}";"${a.studentName}";"${subs}";"${a.checkInTime}";"${a.checkOutTime || ''}";"${a.durationMinutes || ''}";"${a.status}";"${a.teacherName || ''}"\n`;
   });
 
@@ -1697,6 +1943,50 @@ function initUIEventListeners() {
   // Filtros de histórico
   document.getElementById('filterSearchHistory')?.addEventListener('input', renderHistoryTable);
   document.getElementById('filterSubjectHistory')?.addEventListener('change', renderHistoryTable);
+
+  // Popup de Tarefa de Casa
+  document.querySelectorAll('.homework-option-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.homework-option-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const status = btn.getAttribute('data-status');
+      document.getElementById('homeworkSelectedStatus').value = status;
+    });
+  });
+
+  document.getElementById('btnSaveHomework')?.addEventListener('click', () => saveHomeworkStatus());
+  document.getElementById('btnSkipHomework')?.addEventListener('click', () => saveHomeworkStatus('Não informado'));
+  document.getElementById('btnCloseHomeworkModal')?.addEventListener('click', closeHomeworkModal);
+
+  // Modal do Perfil do Aluno & Histórico
+  document.getElementById('btnCloseStudentProfileModal')?.addEventListener('click', () => {
+    document.getElementById('studentProfileModalOverlay')?.classList.remove('active');
+  });
+  document.getElementById('profBtnCloseBottom')?.addEventListener('click', () => {
+    document.getElementById('studentProfileModalOverlay')?.classList.remove('active');
+  });
+  document.getElementById('profBtnEditStudent')?.addEventListener('click', () => {
+    document.getElementById('studentProfileModalOverlay')?.classList.remove('active');
+    if (currentProfileStudent) {
+      openEditStudentModal(currentProfileStudent.id || currentProfileStudent.kumonId);
+    }
+  });
+  document.getElementById('profBtnViewCard')?.addEventListener('click', () => {
+    document.getElementById('studentProfileModalOverlay')?.classList.remove('active');
+    if (currentProfileStudent) {
+      viewStudentCard(currentProfileStudent.kumonId);
+    }
+  });
+  document.getElementById('profBtnAddReplacement')?.addEventListener('click', async () => {
+    if (currentProfileStudent) {
+      await quickAddReplacement(currentProfileStudent.id || currentProfileStudent.kumonId);
+      const repCount = currentProfileStudent.replacementClasses || 0;
+      const repEl = document.getElementById('profStudentReplacements');
+      if (repEl) {
+        repEl.textContent = repCount > 0 ? `${repCount} aula${repCount > 1 ? 's' : ''} pendente${repCount > 1 ? 's' : ''}` : 'Nenhuma reposição pendente';
+      }
+    }
+  });
 
   // Áudio Toggle
   document.getElementById('btnAudioToggle')?.addEventListener('click', () => {
@@ -1949,3 +2239,6 @@ window.handleCheckInOut = handleCheckInOut;
 window.deleteAttendanceRecord = deleteAttendanceRecord;
 window.quickAddReplacement = quickAddReplacement;
 window.quickUseReplacement = quickUseReplacement;
+window.openStudentProfileModal = openStudentProfileModal;
+window.openHomeworkCheckInModal = openHomeworkCheckInModal;
+window.closeHomeworkModal = closeHomeworkModal;
