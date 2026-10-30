@@ -1,6 +1,6 @@
 {
-  "version": "1.10.1",
-  "build": 17,
+  "version": "1.10.2",
+  "build": 18,
   "appName": "Kumon Onpoint",
-  "releaseName": "Correção de sintaxe, funções completas de importação de alunos e fail-safe de splash screen"
+  "releaseName": "Alinhamento milimétrico da grade de horários: blocos encaixados perfeitamente entre os limites de horário"
 }

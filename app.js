@@ -2897,8 +2897,8 @@ function renderScheduleTimeline() {
   const teacherFilter = document.getElementById('filterScheduleTeacher')?.value || 'all';
   const subjectFilter = document.getElementById('filterScheduleSubject')?.value || 'all';
 
-  // 16 marcas de horas: 07:00 até 22:00 (15 slots de 1 hora)
-  const hourMarks = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+  // 15 slots de 1 hora: 07:00 até 22:00 (cada slot representa 1 hora completa)
+  const hourMarks = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
 
   const headerHtml = `
     <div class="timeline-header-row">
@@ -2907,7 +2907,15 @@ function renderScheduleTimeline() {
         <span style="font-size:0.7rem; color:var(--kumon-gray-muted);">Grade</span>
       </div>
       <div class="timeline-hours-track">
-        ${hourMarks.map(h => `<div class="timeline-hour-cell">${h}</div>`).join('')}
+        ${hourMarks.map((h, idx) => {
+          const isLast = (idx === hourMarks.length - 1);
+          return `
+            <div class="timeline-hour-cell ${isLast ? 'is-last-hour' : ''}">
+              <span>${h}</span>
+              ${isLast ? '<span class="timeline-hour-end-pill">22:00</span>' : ''}
+            </div>
+          `;
+        }).join('')}
       </div>
     </div>
   `;
@@ -2948,7 +2956,7 @@ function renderScheduleTimeline() {
 
       return `
         <div class="schedule-card ${isLiveInRoom ? 'is-live-present' : ''}"
-             style="left: ${leftPct.toFixed(2)}%; width: ${widthPct.toFixed(2)}%; top: ${topPx}px; background: ${subjColor};"
+             style="left: ${leftPct.toFixed(2)}%; width: calc(${widthPct.toFixed(2)}% - 2px); top: ${topPx}px; background: ${subjColor};"
              onclick="openScheduleDetailsModal('${item.id}')"
              title="${item.studentName} (${item.startTime} às ${item.endTime} - ${item.subject || 'Geral'})">
           <div class="schedule-card-title">

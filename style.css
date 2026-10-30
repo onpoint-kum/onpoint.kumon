@@ -2383,10 +2383,29 @@ body {
   font-family: var(--font-heading);
   font-size: 0.8rem;
   user-select: none;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.timeline-hour-cell:last-child {
-  border-right: none;
+.timeline-hour-cell.is-last-hour {
+  border-right: 1px dashed #CBD5E1;
+}
+
+.timeline-hour-end-pill {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #64748B;
+  background: #E2E8F0;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid #CBD5E1;
+  letter-spacing: -0.3px;
 }
 
 /* Área do Corpo com as Linhas dos Professores */
@@ -2518,7 +2537,7 @@ body {
 }
 
 .timeline-hour-slot-bg:last-child {
-  border-right: none;
+  border-right: 1px dashed #E2E8F0;
 }
 
 /* Card / Bloco de Aula Agendada */
