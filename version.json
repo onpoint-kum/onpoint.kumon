@@ -1,6 +1,6 @@
 {
-  "version": "1.1.0",
-  "build": 2,
+  "version": "1.1.1",
+  "build": 3,
   "appName": "Kumon Onpoint",
-  "releaseName": "Impressão de Crachá, Orientador Flexível & Mini Perfil"
+  "releaseName": "Remoção de Professores Mock & Ajustes Finais"
 }

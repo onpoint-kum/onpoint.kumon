@@ -84,7 +84,7 @@
           <!-- Saudação fofa personalizada: "Oi, Tia Isa! 👋" -->
           <div class="teacher-greeting-pill" id="btnTeacherProfilePill" title="Clique para editar seu perfil de professor(a)">
             <div class="teacher-avatar-mini" id="headerTeacherAvatar">👩‍🏫</div>
-            <span class="teacher-greeting-text" id="headerTeacherGreeting">Oi, Tia Isa! 👋</span>
+            <span class="teacher-greeting-text" id="headerTeacherGreeting">Professor(a)</span>
           </div>
 
           <button class="btn-neo btn-outline" id="btnAudioToggle" title="Ativar/Desativar Efeitos Sonoros">
@@ -252,7 +252,7 @@
                 </div>
 
                 <div class="card-footer-strip">
-                  <span id="cardTeacherLabel">ORIENTAÇÃO: ISABELA MOLINA</span>
+                  <span id="cardTeacherLabel">ORIENTAÇÃO: UNIDADE KUMON</span>
                   <span>ANO 2026</span>
                 </div>
               </div>
@@ -452,7 +452,7 @@
         <div class="teacher-mini-header">
           <div class="teacher-mini-avatar" id="miniProfileAvatar">👩‍🏫</div>
           <div class="teacher-mini-meta">
-            <h4 id="miniProfileNickname" style="font-family: var(--font-heading); font-size: 1.3rem; color: var(--kumon-navy); margin-bottom: 2px;">Tia Isa</h4>
+            <h4 id="miniProfileNickname" style="font-family: var(--font-heading); font-size: 1.3rem; color: var(--kumon-navy); margin-bottom: 2px;">Professor(a)</h4>
             <span class="brand-badge" style="background: var(--kumon-blue); color: #fff; font-size: 0.75rem;">ORIENTADOR(A) KUMON</span>
           </div>
         </div>
@@ -508,13 +508,13 @@
 
       <div style="background: var(--kumon-yellow-soft); border: var(--border-thick); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; font-size: 0.88rem; color: #713F12;">
         ✨ <strong>Identificação Kumon:</strong><br>
-        Seu tratamento é gerado automaticamente (ex: Isabela Molina → <strong>Tia Isa</strong>).
+        Seu tratamento é gerado automaticamente (ex: Gabriel Rocha → <strong>Tio Gabi</strong>).
       </div>
 
       <form id="formTeacherProfile">
         <div class="form-group">
           <label class="form-label" for="teacherFullName">Nome Completo *</label>
-          <input type="text" id="teacherFullName" class="neo-input" required placeholder="Ex: Isabela Molina" style="width: 100%;">
+          <input type="text" id="teacherFullName" class="neo-input" required placeholder="Ex: Gabriel Rocha" style="width: 100%;">
         </div>
 
         <div class="form-grid-2col">
@@ -540,13 +540,13 @@
         <div class="form-group">
           <label class="form-label" for="teacherNickname">Como os alunos te chamam (Abreviação / Tratamento) *</label>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="teacherNickname" class="neo-input" required placeholder="Ex: Tia Isa" style="width: 100%;">
+            <input type="text" id="teacherNickname" class="neo-input" required placeholder="Ex: Tio Gabi ou Tia Mari" style="width: 100%;">
             <button type="button" class="btn-neo btn-warning" id="btnAutoSuggestNickname" title="Gerar automaticamente com base no nome e sexo">
               🪄 Auto
             </button>
           </div>
           <span style="font-size: 0.78rem; color: var(--kumon-gray-muted);">
-            Exemplo: Isabela gera "Tia Isa", Gabriel gera "Tio Gabi".
+            Exemplo: Gabriel gera "Tio Gabi", Mariana gera "Tia Mari".
           </span>
         </div>
 
@@ -651,7 +651,7 @@
         <div class="form-group">
           <label class="form-label" for="studentOrientadorInput">Orientador(a) do Aluno *</label>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="studentOrientadorInput" class="neo-input" required placeholder="Ex: Isabela Molina" style="width: 100%;">
+            <input type="text" id="studentOrientadorInput" class="neo-input" required placeholder="Ex: Nome do(a) Orientador(a)" style="width: 100%;">
             <select id="selectRegisteredTeacher" class="neo-input" style="max-width: 160px;">
               <option value="">Trocar...</option>
             </select>

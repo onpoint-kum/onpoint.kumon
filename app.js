@@ -675,7 +675,7 @@ function renderStudentCard(kumonId) {
   // Atualiza orientador no rodapé da carteirinha
   const cardTeacherLabel = document.getElementById('cardTeacherLabel');
   if (cardTeacherLabel) {
-    const orientador = student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'ISABELA MOLINA');
+    const orientador = student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'UNIDADE KUMON');
     cardTeacherLabel.textContent = `ORIENTAÇÃO: ${orientador.toUpperCase()}`;
   }
 
@@ -714,7 +714,7 @@ function printAllStudentCardsBatch() {
   container.className = 'print-cards-grid';
   container.style.display = 'grid';
 
-  const teacherLabel = State.currentTeacher ? State.currentTeacher.nickname.toUpperCase() : 'ISABELA MOLINA';
+  const teacherLabel = State.currentTeacher ? State.currentTeacher.nickname.toUpperCase() : 'ORIENTADOR(A)';
 
   State.students.forEach((st, idx) => {
     const cardEl = document.createElement('div');
@@ -873,7 +873,7 @@ function renderStudentsList() {
       return `<span class="subject-badge" style="background:${bg};">${s}</span>`;
     }).join(' ');
 
-    const orientadorNome = st.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'Isabela Molina');
+    const orientadorNome = st.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'A Definir');
 
     return `
       <tr>
@@ -928,8 +928,6 @@ function populateTeacherSelectInStudentModal() {
   State.students.forEach(st => {
     if (st.orientador) teachersSet.add(st.orientador);
   });
-  teachersSet.add('Isabela Molina');
-  teachersSet.add('Tia Isa');
 
   teachersSet.forEach(name => {
     const opt = document.createElement('option');
@@ -954,7 +952,7 @@ function openNewStudentModal() {
   document.getElementById('studentParentInput').value = '';
   document.getElementById('studentPhoneInput').value = '';
   
-  const defaultOrientador = State.currentTeacher ? State.currentTeacher.nickname : 'Isabela Molina';
+  const defaultOrientador = State.currentTeacher ? State.currentTeacher.nickname : '';
   document.getElementById('studentOrientadorInput').value = defaultOrientador;
   populateTeacherSelectInStudentModal();
 
@@ -977,7 +975,7 @@ function openEditStudentModal(studentDocId) {
   document.getElementById('studentParentInput').value = student.parentName || '';
   document.getElementById('studentPhoneInput').value = student.parentPhone || '';
 
-  const orientador = student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : 'Isabela Molina');
+  const orientador = student.orientador || (State.currentTeacher ? State.currentTeacher.nickname : '');
   document.getElementById('studentOrientadorInput').value = orientador;
   populateTeacherSelectInStudentModal();
 
@@ -1020,7 +1018,7 @@ async function saveStudent(e) {
   const avatar = document.getElementById('studentAvatarSelect').value;
   const parentName = document.getElementById('studentParentInput').value.trim();
   const parentPhone = document.getElementById('studentPhoneInput').value.trim();
-  const orientador = document.getElementById('studentOrientadorInput').value.trim() || (State.currentTeacher ? State.currentTeacher.nickname : 'Isabela Molina');
+  const orientador = document.getElementById('studentOrientadorInput').value.trim() || (State.currentTeacher ? State.currentTeacher.nickname : 'Orientador(a)');
 
   // Matérias selecionadas
   const selectedSubjects = Array.from(document.querySelectorAll('input[name="studentSubjectCheck"]:checked')).map(cb => cb.value);
@@ -1504,8 +1502,8 @@ function openTeacherMiniProfileModal() {
   const user = State.currentUser;
   const teacher = State.currentTeacher;
 
-  const nickname = (teacher && teacher.nickname) || 'Tia Isa';
-  const fullName = (teacher && teacher.fullName) || (user && user.displayName) || 'Isabela Molina';
+  const nickname = (teacher && teacher.nickname) || 'Professor(a)';
+  const fullName = (teacher && teacher.fullName) || (user && user.displayName) || 'Orientador(a)';
   const email = (user && user.email) || 'unidade@kumon.com';
   const phone = (teacher && teacher.phone) || 'Não informado';
   const age = (teacher && teacher.age) ? `${teacher.age} anos` : '';
@@ -1544,8 +1542,12 @@ function openTeacherProfileModal(isFirstTime = false) {
   if (teacher && teacher.nickname) {
     document.getElementById('teacherNickname').value = teacher.nickname;
   } else {
-    const fullName = (user && user.displayName) || 'Isabela Molina';
-    document.getElementById('teacherNickname').value = generateCuteNickname(fullName, 'Feminino');
+    const fullName = (user && user.displayName) || '';
+    if (fullName) {
+      document.getElementById('teacherNickname').value = generateCuteNickname(fullName, document.getElementById('teacherGender').value);
+    } else {
+      document.getElementById('teacherNickname').value = '';
+    }
   }
 
   // Chave de acesso e PIN
