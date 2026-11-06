@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Totem de Presença • Kumon Onpoint</title>
+  
+  <link rel="icon" type="image/png" href="assets/onpoint-favicon.png">
+  <link rel="apple-touch-icon" href="assets/onpoint-favicon.png">
+  
+  <!-- Tipografia Oficial -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Quicksand:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    :root {
+      --totem-navy: #0B2545;
+      --totem-border: 2.5px solid #0B2545;
+      --totem-shadow: 3px 3px 0px #0B2545;
+      --font-heading: 'Fredoka', 'Plus Jakarta Sans', system-ui, sans-serif;
+      --font-body: 'Quicksand', 'Plus Jakarta Sans', system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      background-color: #F0F4F8;
+      background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
+      background-size: 16px 16px;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: var(--font-body);
+    }
+
+    /* Container Principal Kiosk (Zero Rolagem) */
+    .totem-kiosk-page {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      height: 100dvh;
+      max-height: 100dvh;
+      box-sizing: border-box;
+      padding: 8px;
+      overflow: hidden;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    /* 1. Topo do Totem */
+    .totem-top-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #FFFFFF;
+      border: var(--totem-border);
+      border-radius: 12px;
+      box-shadow: var(--totem-shadow);
+      padding: 6px 10px;
+      flex-shrink: 0;
+      height: 44px;
+      gap: 8px;
+    }
+
+    .totem-logo-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .totem-logo-img {
+      height: 24px;
+      width: auto;
+      max-width: 130px;
+      object-fit: contain;
+    }
+
+    .totem-clock-box {
+      text-align: right;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .totem-digital-time {
+      font-family: var(--font-heading);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--totem-navy);
+      line-height: 1;
+      letter-spacing: 0.5px;
+    }
+
+    .totem-digital-date {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #64748B;
+      white-space: nowrap;
+      background: #F1F5F9;
+      padding: 3px 6px;
+      border-radius: 6px;
+      border: 1px solid #CBD5E1;
+      line-height: 1;
+    }
+
+    /* 2. Card Central do Totem (Câmera + Leitor) */
+    .totem-main-card {
+      background: #FFFFFF;
+      border: var(--totem-border);
+      border-radius: 14px;
+      box-shadow: var(--totem-shadow);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      gap: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .totem-card-top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .totem-card-title {
+      font-family: var(--font-heading);
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--totem-navy);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+    }
+
+    /* Viewport da Câmera */
+    .totem-camera-viewport {
+      flex: 1;
+      min-height: 0;
+      background: #0B2545;
+      border: 2px solid var(--totem-navy);
+      border-radius: 10px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #reader {
+      width: 100% !important;
+      height: 100% !important;
+      border: none !important;
+      padding: 0 !important;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #reader__scan_region {
+      width: 100% !important;
+      height: 100% !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    #reader video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      border-radius: 8px;
+      display: block !important;
+    }
+
+    #reader__header_message,
+    #reader__status_span,
+    #reader__dashboard_section {
+      display: none !important;
+    }
+
+    .totem-cam-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #94A3B8;
+      font-size: 0.82rem;
+      font-weight: 700;
+      pointer-events: none;
+      z-index: 1;
+      background: #0B2545;
+    }
+
+    /* Mira da Câmera */
+    .totem-scan-guide-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 68%;
+      height: 68%;
+      max-width: 200px;
+      max-height: 200px;
+      border: 3px dashed #FFE600;
+      border-radius: 14px;
+      pointer-events: none;
+      z-index: 10;
+      box-shadow: 0 0 14px rgba(255, 230, 0, 0.45);
+      transition: all 0.25s ease;
+    }
+
+    .totem-laser-scan {
+      width: 100%;
+      height: 3px;
+      background: #FFE600;
+      box-shadow: 0 0 8px #FFE600, 0 0 14px #FFE600;
+      position: absolute;
+      top: 0;
+      animation: laserSweep 2.2s infinite ease-in-out;
+    }
+
+    @keyframes laserSweep {
+      0% { top: 6%; opacity: 0.9; }
+      50% { top: 92%; opacity: 0.9; }
+      100% { top: 6%; opacity: 0.9; }
+    }
+
+    .totem-scan-guide-box.totem-scan-success-flash {
+      border-color: #22C55E !important;
+      box-shadow: 0 0 30px #22C55E !important;
+    }
+
+    /* Formulário de Digitação Manual */
+    .totem-manual-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .totem-manual-input {
+      flex: 1;
+      height: 38px;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      border: 2px solid var(--totem-navy);
+      border-radius: 8px;
+      font-weight: 700;
+      color: var(--totem-navy);
+      background: #F8FAFC;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .totem-manual-input:focus {
+      background: #FFFFFF;
+      border-color: #0099D8;
+    }
+
+    .totem-manual-btn {
+      height: 38px;
+      padding: 0 14px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      background: #FFE600;
+      color: var(--totem-navy);
+      border: 2px solid var(--totem-navy);
+      border-radius: 8px;
+      box-shadow: 2px 2px 0px var(--totem-navy);
+      cursor: pointer;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-heading);
+    }
+
+    .totem-manual-btn:active {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0px var(--totem-navy);
+    }
+
+    /* Barra de Status e Presenças Hoje */
+    .totem-live-pills-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .totem-hint-text {
+      color: #64748B;
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .totem-pills-group {
+      display: flex;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .totem-pill-stat {
+      padding: 3px 7px;
+      border-radius: 6px;
+      border: 1.5px solid var(--totem-navy);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    /* 3. Rodapé do Totem */
+    .totem-bottom-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #FFFFFF;
+      border: var(--totem-border);
+      border-radius: 12px;
+      box-shadow: var(--totem-shadow);
+      padding: 4px 10px;
+      flex-shrink: 0;
+      height: 40px;
+      gap: 8px;
+    }
+
+    .totem-online-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--totem-navy);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .totem-green-dot {
+      width: 8px;
+      height: 8px;
+      background: #22C55E;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: inline-block;
+      animation: pulseGreen 1.6s infinite;
+    }
+
+    @keyframes pulseGreen {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    .totem-btn-teacher {
+      text-decoration: none;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      background: #0077B6;
+      color: #FFFFFF;
+      border: 2px solid var(--totem-navy);
+      border-radius: 8px;
+      box-shadow: 2px 2px 0px var(--totem-navy);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      font-family: var(--font-heading);
+    }
+
+    .totem-btn-teacher:active {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0px var(--totem-navy);
+    }
+
+    /* ==========================================================================
+       MODAIS OVERLAY
+       ========================================================================== */
+    .totem-feedback-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 37, 69, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 5000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .totem-feedback-modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .totem-feedback-popup {
+      background: #FFFFFF;
+      border: 3px solid var(--totem-navy);
+      border-radius: 18px;
+      box-shadow: 6px 6px 0px var(--totem-navy);
+      padding: 18px 16px;
+      text-align: center;
+      width: 100%;
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform: scale(0.85);
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .totem-feedback-modal-overlay.active .totem-feedback-popup {
+      transform: scale(1);
+    }
+
+    .totem-popup-avatar {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: 3px solid var(--totem-navy);
+      background: #FFE600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.4rem;
+      margin-bottom: 8px;
+      box-shadow: 3px 3px 0px var(--totem-navy);
+    }
+
+    .totem-popup-badge-in {
+      background: #DCFCE7;
+      color: #15803D;
+      border: 2px solid #15803D;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-family: var(--font-heading);
+      font-weight: 800;
+      font-size: 0.88rem;
+      margin-bottom: 6px;
+    }
+
+    .totem-popup-badge-out {
+      background: #FEE2E2;
+      color: #B91C1C;
+      border: 2px solid #B91C1C;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-family: var(--font-heading);
+      font-weight: 800;
+      font-size: 0.88rem;
+      margin-bottom: 6px;
+    }
+
+    .totem-popup-name {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--totem-navy);
+      margin: 0 0 2px 0;
+      line-height: 1.2;
+    }
+
+    .totem-popup-id {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: #0077B6;
+      margin-bottom: 8px;
+    }
+
+    .totem-popup-detail {
+      background: #F8FAFC;
+      border: 2px solid var(--totem-navy);
+      border-radius: 10px;
+      padding: 6px 10px;
+      margin-bottom: 8px;
+      font-weight: 700;
+      color: #334155;
+      font-size: 0.82rem;
+      width: 100%;
+      line-height: 1.35;
+    }
+
+    .totem-popup-subjects {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Modal de Ativação / Login do Google */
+    .totem-auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 37, 69, 0.8);
+      backdrop-filter: blur(4px);
+      z-index: 6000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .totem-auth-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .totem-auth-box {
+      background: #FFFFFF;
+      border: var(--totem-border);
+      border-radius: 16px;
+      box-shadow: 6px 6px 0px var(--totem-navy);
+      padding: 20px;
+      text-align: center;
+      max-width: 360px;
+      width: 100%;
+    }
+  </style>
+
+  <!-- Firebase Scripts (Compat 10.8.0) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <div class="totem-kiosk-page">
+    
+    <!-- 1. Topo do Totem com Logo e Hora -->
+    <header class="totem-top-header">
+      <div class="totem-logo-group">
+        <img src="assets/onpoint.png" alt="Kumon Onpoint" class="totem-logo-img">
+      </div>
+
+      <div class="totem-clock-box">
+        <div class="totem-digital-time" id="totemLiveClock">--:--:--</div>
+        <div class="totem-digital-date" id="totemLiveDate">...</div>
+      </div>
+    </header>
+
+    <!-- 2. Card Central da Câmera & Leitor -->
+    <main class="totem-main-card">
+      <div class="totem-card-top-bar">
+        <h2 class="totem-card-title">
+          <span>📷</span> Leitor de QR Code
+        </h2>
+        <button type="button" class="btn-neo btn-sm btn-outline" id="btnTotemSwitchCam" style="padding: 2px 8px; font-size: 0.72rem; display: none;">
+          🔄 Alternar Câmera
+        </button>
+      </div>
+
+      <!-- Viewport da Câmera (Com Mira Central) -->
+      <div class="totem-camera-viewport" id="totemCameraViewport">
+        <div id="reader"></div>
+        <div class="totem-cam-placeholder" id="totemCamPlaceholder">
+          <span style="font-size: 2rem; display: block; margin-bottom: 6px;">📷</span>
+          Iniciando câmera...
+        </div>
+        <div class="totem-scan-guide-box" id="totemScanGuide">
+          <div class="totem-laser-scan"></div>
+        </div>
+      </div>
+
+      <!-- Digitação Manual por ID -->
+      <form id="formTotemManualId" class="totem-manual-row">
+        <input type="text" id="inputTotemManualId" class="totem-manual-input" placeholder="Digite seu KumonID (ex: 1 ou KUM-0001)" autocomplete="off">
+        <button type="submit" class="totem-manual-btn">
+          Bater
+        </button>
+      </form>
+
+      <!-- Barra de Presenças Rápidas -->
+      <div class="totem-live-pills-row">
+        <span class="totem-hint-text">👋 Aproxime a carteirinha</span>
+        <div class="totem-pills-group">
+          <span class="totem-pill-stat" style="background: #EBF8FF; color: #0077B6;">
+            🟢 <strong id="totemLiveCount">0</strong> em sala
+          </span>
+          <span class="totem-pill-stat" style="background: #FEF3C7; color: #B45309;">
+            📅 <strong id="totemTodayCount">0</strong> hoje
+          </span>
+        </div>
+      </div>
+    </main>
+
+    <!-- 3. Rodapé do Totem -->
+    <footer class="totem-bottom-footer">
+      <div class="totem-online-badge">
+        <span class="totem-green-dot"></span>
+        <span id="totemFirebaseStatus">Totem Conectado</span>
+      </div>
+
+      <a href="index.html?area=professor" class="totem-btn-teacher" id="btnGoTeacherArea">
+        🔐 Área do Professor
+      </a>
+    </footer>
+
+  </div>
+
+  <!-- POPUP DE FEEDBACK CELEBRATIVO DE PONTO (CENTRALIZADO & AUTOMÁTICO) -->
+  <div class="totem-feedback-modal-overlay" id="totemFeedbackOverlay">
+    <div class="totem-feedback-popup">
+      <div class="totem-popup-avatar" id="totemSuccessAvatar">👦</div>
+      <div id="totemSuccessBadge" class="totem-popup-badge-in">🟢 ENTRADA REGISTRADA!</div>
+      
+      <h2 id="totemSuccessName" class="totem-popup-name">Nome do Aluno</h2>
+      <div id="totemSuccessId" class="totem-popup-id">KUM-0001</div>
+
+      <div id="totemSuccessDetail" class="totem-popup-detail">
+        Entrada às 15:00
+      </div>
+
+      <div id="totemSuccessSubjects" class="totem-popup-subjects">
+        <!-- Badges de matérias -->
+      </div>
+    </div>
+  </div>
+
+  <!-- POPUP DE ERRO DE LEITURA -->
+  <div class="totem-feedback-modal-overlay" id="totemErrorOverlay">
+    <div class="totem-feedback-popup">
+      <div style="font-size: 2.8rem; margin-bottom: 6px;">⚠️</div>
+      <div class="totem-popup-badge-out">ID NÃO ENCONTRADO</div>
+      <p id="totemErrorMessage" style="font-size: 0.88rem; font-weight: 700; color: #B91C1C; margin: 8px 0;">
+        Verifique o código e tente novamente.
+      </p>
+    </div>
+  </div>
+
+  <!-- Modal de Ativação / Conexão Google Inicial -->
+  <div class="totem-auth-overlay" id="totemAuthModalOverlay">
+    <div class="totem-auth-box">
+      <div style="font-size: 2.5rem; margin-bottom: 6px;">🔐</div>
+      <h3 style="font-family: var(--font-heading); font-size: 1.2rem; color: #0B2545; margin: 0 0 6px 0;">
+        Ativação do Totem
+      </h3>
+      <p style="font-size: 0.82rem; color: #64748B; margin: 0 0 14px 0;">
+        Conecte com a conta Google da unidade uma única vez para liberar o leitor de presença neste aparelho.
+      </p>
+      <button type="button" class="btn-neo btn-primary" id="btnTotemGoogleLogin" style="width: 100%; justify-content: center; padding: 9px; font-size: 0.9rem;">
+        🌐 Entrar com o Google
+      </button>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="capacitor.js"></script>
+  <script src="assets/qrcode.min.js"></script>
+  <script src="assets/html5-qrcode.min.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="audio.js"></script>
+  <script src="totem.js"></script>
+</body>
+</html>

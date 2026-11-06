@@ -2,6 +2,16 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+    <script>
+    // Se o usuário acessar a raiz sem o modo professor, abre o Totem dos alunos por padrão
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var isTeacher = params.get('area') === 'professor' || sessionStorage.getItem('kumon_teacher_mode') === 'true';
+      if (!isTeacher) {
+        window.location.replace('totem.html');
+      }
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0099D8">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -95,6 +105,15 @@
         </div>
         
         <div class="header-right">
+          <!-- Atalho para o Totem em tela cheia -->
+          <a href="totem.html" class="btn-neo btn-warning" id="btnGoToTotem" title="Alternar para o Totem de alunos" style="text-decoration: none; font-size: 0.82rem; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px; background: #FFE600; color: #0B2545;">
+            <span>📱</span> <span style="font-size: 0.72rem; font-weight: 800;">Totem</span>
+          </a>
+
+          <!-- Botão Gerenciar Professores -->
+          <button type="button" class="btn-neo btn-outline" id="btnOpenTeachersManagementModal" title="Gerenciar lista de orientadores" style="font-size: 0.82rem; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;">
+            <span>👥</span> <span style="font-size: 0.72rem; font-weight: 800;">Professores</span>
+          </button>
           <!-- Botão perfil do Professor (Avatar / Foto) -->
           <button type="button" class="teacher-greeting-pill" id="btnTeacherProfilePill" title="Clique para ver seu perfil de professor(a)">
             <div class="teacher-avatar-mini" id="headerTeacherAvatar">👩‍🏫</div>
@@ -119,9 +138,10 @@
     <!-- NAVEGAÇÃO EM ABAS NEO-POP -->
     <nav class="nav-container">
       <div class="nav-tabs">
-        <button class="nav-btn active" data-tab="tab-totem">
-          <span class="nav-icon">📷</span>
-          <span class="nav-label">Totem</span>
+        <button class="nav-btn active" data-tab="tab-tarefas">
+          <span class="nav-icon">📝</span>
+          <span class="nav-label">Tarefas</span>
+          <span class="nav-counter" id="badgeTarefasPendentes">0</span>
         </button>
         <button class="nav-btn" data-tab="tab-carteirinha">
           <span class="nav-icon">🪪</span>
@@ -157,78 +177,37 @@
     <!-- CONTEÚDO PRINCIPAL -->
     <main class="main-content">
 
-      <!-- ------------------------------------------------------------------------
-           ABA 1: TOTEM DE PONTO (SCANNER DE QR CODE & ENTRADA MANUAL)
-           ------------------------------------------------------------------------ -->
-      <section class="tab-pane active" id="tab-totem">
-        <div class="totem-layout">
-          
-          <!-- Coluna da Esquerda: Câmera e Entrada de Código -->
-          <div class="neo-card scanner-box">
-            <div class="neo-card-header" style="width: 100%;">
-              <div>
-                <h2 class="neo-title"><span>📷</span> Totem de Registro</h2>
-                <p class="neo-subtitle">Aponte o QR Code da carteirinha do aluno ou digite o ID</p>
-              </div>
-              <span class="brand-badge" style="background:#DCFCE7; color:#166534;">AUTO-DETECT</span>
+      <!-- ========================================================================
+           ABA 1: REGISTRO E ACOMPANHAMENTO DE TAREFAS DE CASA (ALUNOS EM SALA)
+           ======================================================================== -->
+      <section class="tab-pane active" id="tab-tarefas">
+        <div class="neo-card">
+          <div class="neo-card-header" style="flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h2 class="neo-title"><span>📝</span> Registro de Tarefas de Casa</h2>
+              <p class="neo-subtitle">Acompanhe os alunos em sala e registre o resultado das lições trazidas hoje</p>
             </div>
-
-            <!-- Câmera com overlay de mira -->
-            <div class="camera-viewport" id="cameraViewport">
-              <div id="reader"></div>
-              <div class="camera-guide-frame" id="cameraGuide">
-                <div class="scan-laser"></div>
-              </div>
-            </div>
-
-            <!-- Controles do Scanner -->
-            <div class="scanner-controls">
-              <button class="btn-neo btn-primary" id="btnToggleCamera">
-                <span id="cameraBtnIcon">📹</span> <span id="cameraBtnText">Iniciar Câmera</span>
-              </button>
-              <button class="btn-neo btn-outline" id="btnSwitchCamera" style="display: none;">
-                🔄 Trocar Câmera
-              </button>
-            </div>
-
-            <!-- Digitação Manual por ID -->
-            <div class="manual-id-section">
-              <label class="form-label" for="inputManualId">Ou digite o KumonID do Aluno:</label>
-              <form class="manual-form" id="formManualCheck">
-                <input type="text" id="inputManualId" class="neo-input" placeholder="Ex: KUM-0001" autocomplete="off">
-                <button type="submit" class="btn-neo btn-warning">Bater Ponto</button>
-              </form>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <span class="brand-badge" style="background:#DCFCE7; color:#15803D; font-size: 0.85rem;" id="tarefasSummaryCount">0 alunos em sala</span>
             </div>
           </div>
 
-          <!-- Coluna da Direita: Card de Feedback em Tempo Real & Status da Unidade -->
-          <div class="feedback-container">
-            <div class="feedback-card empty-state" id="feedbackCard">
-              <div style="font-size: 3.2rem; margin-bottom: 8px;">👋</div>
-              <h3 style="font-family: var(--font-heading); font-size: 1.3rem; color: var(--kumon-navy); margin-bottom: 6px;">Pronto para registrar!</h3>
-              <p style="font-size: 0.88rem; color: var(--kumon-gray-muted); max-width: 250px; text-align: center; margin-bottom: 16px;">
-                Aproxime o QR Code do aluno na câmera ou digite o KumonID ao lado.
-              </p>
-
-              <div class="totem-status-pill">
-                <span class="status-pulse-dot"></span>
-                <span>Totem Ativo • Pronto</span>
-              </div>
-
-              <!-- Mini Resumo da Unidade em Tempo Real -->
-              <div class="totem-mini-stats">
-                <div class="totem-stat-box">
-                  <span class="totem-stat-number" id="totemLiveCount">0</span>
-                  <span class="totem-stat-label">Em Sala Agora</span>
-                </div>
-                <div class="totem-stat-box">
-                  <span class="totem-stat-number" id="totemTodayCount">0</span>
-                  <span class="totem-stat-label">Presenças Hoje</span>
-                </div>
-              </div>
+          <!-- Filtros Rápidos de Tarefas -->
+          <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
+            <div style="flex: 1; min-width: 200px;">
+              <input type="text" id="filterTarefasSearch" class="neo-input" placeholder="🔍 Buscar aluno presente por nome ou ID..." style="font-size: 0.9rem; padding: 8px 12px;">
+            </div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="tarefasFilterButtonGroup">
+              <button type="button" class="btn-neo btn-sm btn-filter-tarefa active" data-filter="all">Todos em Sala</button>
+              <button type="button" class="btn-neo btn-sm btn-filter-tarefa" data-filter="pending">⏳ Apenas Pendentes</button>
+              <button type="button" class="btn-neo btn-sm btn-filter-tarefa" data-filter="done">✅ Avaliados</button>
             </div>
           </div>
 
+          <!-- Grade de Alunos em Sala com Acompanhamento de Tarefas -->
+          <div id="tarefasStudentsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px;">
+            <!-- Preenchido dinamicamente via JavaScript -->
+          </div>
         </div>
       </section>
 
@@ -531,10 +510,18 @@
               <option value="all">Todas as Matérias</option>
               <!-- Preenchido dinamicamente com as matérias cadastradas -->
             </select>
-            <select id="filterPeriodHistory" class="neo-input" style="font-size: 0.9rem; padding: 8px 12px; width: auto;">
-              <option value="today">Hoje</option>
-              <option value="all">Todo o Histórico</option>
-            </select>
+            
+          </div>
+
+          <!-- Pílulas de Seleção Rápida de Período -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;" id="historyPeriodPills">
+            <span style="font-size: 0.82rem; font-weight: 800; color: #0B2545;">Período:</span>
+            <button type="button" class="btn-neo btn-sm btn-history-period active" data-period="today">Hoje</button>
+            <button type="button" class="btn-neo btn-sm btn-history-period" data-period="yesterday">Ontem</button>
+            <button type="button" class="btn-neo btn-sm btn-history-period" data-period="7days">7 Dias</button>
+            <button type="button" class="btn-neo btn-sm btn-history-period" data-period="15days">15 Dias</button>
+            <button type="button" class="btn-neo btn-sm btn-history-period" data-period="30days">30 Dias</button>
+            <button type="button" class="btn-neo btn-sm btn-history-period" data-period="all">Todo o Histórico</button>
           </div>
 
           <div class="table-responsive">
@@ -1025,7 +1012,7 @@
           Pular
         </button>
         <button type="button" class="btn-neo btn-success" id="btnSaveHomework" style="flex: 1;">
-          💾 Salvar Registro de Entrada
+          💾 Salvar Registro de Tarefa
         </button>
       </div>
     </div>
@@ -1394,6 +1381,29 @@
         <button type="button" class="btn-neo btn-primary" id="btnStartImportStudents" style="background: #10B981; color: #FFF; padding: 10px 22px; font-size: 0.95rem;">
           🚀 Iniciar Cadastro no Firebase (87 Alunos)
         </button>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- Modal de Gerenciamento de Professores (Excluir apenas Inventados) -->
+  <div class="neo-modal-overlay" id="teachersManagementModalOverlay">
+    <div class="neo-modal" style="max-width: 580px; max-height: 88vh; display: flex; flex-direction: column; padding: 22px;">
+      <div class="neo-card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h3 class="neo-title" style="font-size: 1.25rem; display: flex; align-items: center; gap: 8px;">
+            <span>👥</span> Gerenciar Professores & Orientadores
+          </h3>
+          <p class="neo-subtitle" style="font-size: 0.82rem; margin-top: 4px;">
+            Veja todos os professores. Nomes avulsos/inventados podem ser excluídos. Contas oficiais são protegidas.
+          </p>
+        </div>
+        <button type="button" class="modal-close-btn" id="btnCloseTeachersManagementModal" aria-label="Fechar">✕</button>
+      </div>
+
+      <!-- Lista de Professores -->
+      <div id="teachersManagementList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 180px; max-height: 420px; padding: 4px;">
+        <!-- Preenchido dinamicamente via JS -->
       </div>
     </div>
   </div>

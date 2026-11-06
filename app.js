@@ -19,7 +19,10 @@ const State = {
   isPinUnlocked: false,
   currentPinInput: "",
   isProcessingScan: false,
-  recentScans: new Map()
+  recentScans: new Map(),
+  registeredTeachers: [],
+  historyPeriodFilter: 'today',
+  tarefasFilter: 'all'
 };
 
 const MASTER_UNIT_KEY = "onpoint-teacher-00#MVN";
@@ -337,21 +340,44 @@ function initFirestoreListeners() {
     }, (error) => console.error('Erro ao ouvir alunos:', error));
   KumonFirebase.unsubscribers.push(unsubStudents);
 
-  // 3. Frequência / Ponto
-  const todayStr = getTodayDateString();
+  // 3. Frequência / Ponto (Histórico compartilhado completo de todas as datas)
   const unsubAttendance = KumonFirebase.db.collection('kumon_attendance')
-    .where('date', '==', todayStr)
+    .orderBy('date', 'desc')
+    .limit(600)
     .onSnapshot((snapshot) => {
       State.attendances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       renderLiveStudents();
+      renderTarefasList();
       renderHistoryTable();
-      renderScheduleTimeline(); // Atualiza indicadores ao vivo dos alunos presentes na grade
+      renderScheduleTimeline();
       updateBadges();
       if (State.selectedStudentForCard) {
         updateCardStats(State.selectedStudentForCard.kumonId);
       }
-    }, (error) => console.error('Erro ao ouvir frequência:', error));
+    }, (error) => {
+      console.warn('Fallback na frequência sem ordenação:', error);
+      KumonFirebase.db.collection('kumon_attendance')
+        .onSnapshot((snapshot) => {
+          State.attendances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          renderLiveStudents();
+          renderTarefasList();
+          renderHistoryTable();
+          renderScheduleTimeline();
+          updateBadges();
+        });
+    });
   KumonFirebase.unsubscribers.push(unsubAttendance);
+
+  // 4. Professores Registrados no Firebase (kumon_teachers)
+  const unsubTeachers = KumonFirebase.db.collection('kumon_teachers')
+    .onSnapshot((snapshot) => {
+      State.registeredTeachers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      updateScheduleTeacherFilterOptions();
+      populateTeacherSelectInStudentModal();
+      renderScheduleTimeline();
+      renderTeachersManagementModal();
+    }, (error) => console.error('Erro ao ouvir professores cadastrados:', error));
+  KumonFirebase.unsubscribers.push(unsubTeachers);
 
   // 4. Grade de Horários & Escala
   const unsubSchedules = KumonFirebase.db.collection('kumon_schedules')
@@ -541,11 +567,7 @@ async function handleCheckInOut(scannedId, source = 'manual') {
     if (window.kumonAudio) window.kumonAudio.playCheckIn();
     renderFeedbackSuccess(student, 'in', timeStr, null, null);
     unlockCameraAfterDelay(3500);
-
-    // Abre o popup de lição/atividade de casa imediatamente!
-    setTimeout(() => {
-      openHomeworkCheckInModal(student, recordId);
-    }, 400);
+    renderTarefasList();
   }
 }
 
@@ -1543,6 +1565,7 @@ async function saveHomeworkStatus(forcedStatus = null) {
     }
   }
 
+  renderTarefasList();
   closeHomeworkModal();
   if (window.kumonAudio) window.kumonAudio.playClick();
 }
@@ -1825,32 +1848,69 @@ function renderHistoryTable() {
 
   const searchVal = (document.getElementById('filterSearchHistory')?.value || '').toLowerCase();
   const subjectVal = document.getElementById('filterSubjectHistory')?.value || 'all';
+  const periodVal = State.historyPeriodFilter || 'today';
+
+  const todayStr = getTodayDateString();
+  const yesterdayStr = getDateStringOffset(-1);
+  const sevenDaysAgoStr = getDateStringOffset(-7);
+  const fifteenDaysAgoStr = getDateStringOffset(-15);
+  const thirtyDaysAgoStr = getDateStringOffset(-30);
 
   const filtered = State.attendances.filter(a => {
-    const matchesSearch = a.studentName.toLowerCase().includes(searchVal) || a.kumonId.toLowerCase().includes(searchVal);
+    // 1. Filtro de Período
+    if (periodVal === 'today') {
+      if (a.date !== todayStr) return false;
+    } else if (periodVal === 'yesterday') {
+      if (a.date !== yesterdayStr) return false;
+    } else if (periodVal === '7days') {
+      if (!a.date || a.date < sevenDaysAgoStr || a.date > todayStr) return false;
+    } else if (periodVal === '15days') {
+      if (!a.date || a.date < fifteenDaysAgoStr || a.date > todayStr) return false;
+    } else if (periodVal === '30days') {
+      if (!a.date || a.date < thirtyDaysAgoStr || a.date > todayStr) return false;
+    }
+    // 'all' aceita todas as datas
+
+    // 2. Filtro de Busca (Nome ou ID)
+    const matchesSearch = (a.studentName || '').toLowerCase().includes(searchVal) || (a.kumonId || '').toLowerCase().includes(searchVal);
+    if (!matchesSearch) return false;
+
+    // 3. Filtro de Matéria
     const matchesSubject = (subjectVal === 'all') || (a.subjects || []).includes(subjectVal);
-    return matchesSearch && matchesSubject;
+    if (!matchesSubject) return false;
+
+    return true;
   });
 
   if (filtered.length === 0) {
+    let emptyPeriodText = 'para este período';
+    if (periodVal === 'today') emptyPeriodText = 'para hoje';
+    else if (periodVal === 'yesterday') emptyPeriodText = 'para ontem';
+
     tbody.innerHTML = `
       <tr>
-        <td colspan="10" style="text-align: center; padding: 24px; color: var(--kumon-gray-muted);">
-          Nenhum registro de ponto encontrado para hoje.
+        <td colspan="10" style="text-align: center; padding: 28px; color: var(--kumon-gray-muted);">
+          Nenhum registro de ponto encontrado ${emptyPeriodText}.
         </td>
       </tr>
     `;
     return;
   }
 
-  tbody.innerHTML = filtered.map(a => {
+  // Ordena do mais recente para o mais antigo
+  const sorted = [...filtered].sort((x, y) => {
+    if (x.date !== y.date) return (y.date || '').localeCompare(x.date || '');
+    return (y.checkInTime || '').localeCompare(x.checkInTime || '');
+  });
+
+  tbody.innerHTML = sorted.map(a => {
     const dur = a.durationMinutes ? `${a.durationMinutes} min` : '-';
     const statusBadge = a.status === 'in' 
       ? '<span class="brand-badge" style="background:#DCFCE7; color:#166534;">EM SALA</span>'
       : '<span class="brand-badge" style="background:#F1F5F9; color:#475569;">CONCLUÍDO</span>';
 
     const subjectsBadges = (a.subjects || []).map(s => {
-      const subjObj = State.subjects.find(sub => sub.name === s);
+      const subjObj = (State.subjects || []).find(sub => sub.name === s);
       const bg = subjObj ? subjObj.color : '#E2E8F0';
       return `<span class="subject-badge" style="background:${bg}; font-size:0.7rem;">${s}</span>`;
     }).join(' ');
@@ -1986,6 +2046,11 @@ function initUIEventListeners() {
     });
   });
 
+  // Atalho para voltar ao Totem dos alunos
+  document.getElementById('btnGoToTotem')?.addEventListener('click', () => {
+    sessionStorage.removeItem('kumon_teacher_mode');
+  });
+
   // Toggle Câmera Totem
   document.getElementById('btnToggleCamera')?.addEventListener('click', toggleCamera);
 
@@ -1997,6 +2062,40 @@ function initUIEventListeners() {
       handleCheckInOut(input.value);
       input.value = '';
     }
+  });
+
+  // Filtros de período do histórico (Hoje, Ontem, 7 Dias, 15 Dias, 30 Dias, Todo o Histórico)
+  document.querySelectorAll('.btn-history-period').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.btn-history-period').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      State.historyPeriodFilter = btn.getAttribute('data-period') || 'today';
+      renderHistoryTable();
+    });
+  });
+
+  // Filtros da aba de tarefas
+  document.querySelectorAll('.btn-filter-tarefa').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.btn-filter-tarefa').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      State.tarefasFilter = btn.getAttribute('data-filter') || 'all';
+      renderTarefasList();
+    });
+  });
+
+  document.getElementById('filterTarefasSearch')?.addEventListener('input', () => {
+    renderTarefasList();
+  });
+
+  // Modal de gerenciamento de professores
+  document.getElementById('btnOpenTeachersManagementModal')?.addEventListener('click', () => {
+    document.getElementById('teachersManagementModalOverlay')?.classList.add('active');
+    renderTeachersManagementModal();
+  });
+
+  document.getElementById('btnCloseTeachersManagementModal')?.addEventListener('click', () => {
+    document.getElementById('teachersManagementModalOverlay')?.classList.remove('active');
   });
 
   // Select Aluno na Carteirinha
@@ -2592,6 +2691,15 @@ function updateLiveTimers() {
 // ==========================================================================
 // 14. UTILITÁRIOS DE DATA E HORA
 // ==========================================================================
+function getDateStringOffset(daysOffset = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysOffset);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function getTodayDateString() {
   const d = new Date();
   const y = d.getFullYear();
@@ -2772,46 +2880,69 @@ function getAllTeachers() {
   const teachersMap = new Map();
   const currentUserEmail = (State.currentUser && State.currentUser.email) || '';
 
-  // Não inclui o DEV João na lista de professores
-  if (State.currentTeacher && State.currentTeacher.nickname && !isDevAccount(currentUserEmail) && !isDevAccount(State.currentTeacher.nickname)) {
-    teachersMap.set(State.currentTeacher.nickname, {
-      name: State.currentTeacher.nickname,
-      fullName: State.currentTeacher.fullName || State.currentTeacher.nickname,
-      photo: State.currentTeacher.photoBase64 || '',
-      avatar: State.currentTeacher.gender === 'Masculino' ? '👨‍🏫' : '👩‍🏫'
-    });
+  // 1. Professores com cadastro oficial no Firestore (kumon_teachers)
+  (State.registeredTeachers || []).forEach(t => {
+    const nick = t.nickname || t.name || t.fullName;
+    if (nick && !isDevAccount(t.email) && !isDevAccount(nick)) {
+      teachersMap.set(nick, {
+        id: t.id || t.uid,
+        name: nick,
+        fullName: t.fullName || nick,
+        email: t.email || '',
+        photo: t.photoBase64 || '',
+        avatar: t.gender === 'Masculino' ? '👨‍🏫' : '👩‍🏫',
+        isRegistered: true,
+        canDelete: false
+      });
+    }
+  });
+
+  // 2. Professor logado atual (garante exibição imediata)
+  if (State.currentTeacher && State.currentTeacher.nickname) {
+    const nick = State.currentTeacher.nickname;
+    if (!isDevAccount(currentUserEmail) && !isDevAccount(nick) && !teachersMap.has(nick)) {
+      teachersMap.set(nick, {
+        id: State.currentTeacher.uid || 'current',
+        name: nick,
+        fullName: State.currentTeacher.fullName || nick,
+        email: currentUserEmail,
+        photo: State.currentTeacher.photoBase64 || '',
+        avatar: State.currentTeacher.gender === 'Masculino' ? '👨‍🏫' : '👩‍🏫',
+        isRegistered: true,
+        canDelete: false
+      });
+    }
   }
 
+  // 3. Orientadores avulsos/inventados presentes em Alunos
   (State.students || []).forEach(st => {
     if (st.orientador && !isDevAccount(st.orientador) && !teachersMap.has(st.orientador)) {
       teachersMap.set(st.orientador, {
         name: st.orientador,
         fullName: st.orientador,
+        email: '',
         photo: '',
-        avatar: '🧑‍🏫'
+        avatar: '🧑‍🏫',
+        isRegistered: false,
+        canDelete: true
       });
     }
   });
 
+  // 4. Orientadores avulsos/inventados presentes em Horários
   (State.schedules || []).forEach(sch => {
     if (sch.orientador && !isDevAccount(sch.orientador) && !teachersMap.has(sch.orientador)) {
       teachersMap.set(sch.orientador, {
         name: sch.orientador,
         fullName: sch.orientador,
+        email: '',
         photo: '',
-        avatar: '🧑‍🏫'
+        avatar: '🧑‍🏫',
+        isRegistered: false,
+        canDelete: true
       });
     }
   });
-
-  if (teachersMap.size === 0) {
-    teachersMap.set('Orientador(a)', {
-      name: 'Orientador(a)',
-      fullName: 'Orientador(a)',
-      photo: '',
-      avatar: '🧑‍🏫'
-    });
-  }
 
   return Array.from(teachersMap.values());
 }
@@ -3884,3 +4015,244 @@ async function startImportingStudentsToFirebase() {
 
 window.openImportStudentsModal = openImportStudentsModal;
 window.startImportingStudentsToFirebase = startImportingStudentsToFirebase;
+
+
+// ==========================================================================
+// 16. ABA DE TAREFAS DE CASA (ACOMPANHAMENTO DOS ALUNOS EM SALA)
+// ==========================================================================
+function renderTarefasList() {
+  const container = document.getElementById('tarefasStudentsList');
+  const summaryCountEl = document.getElementById('tarefasSummaryCount');
+  const badgePendentesEl = document.getElementById('badgeTarefasPendentes');
+  if (!container) return;
+
+  const todayStr = getTodayDateString();
+  const presentStudents = State.attendances.filter(a => a.date === todayStr && a.status === 'in');
+
+  // Contagem de pendentes
+  const pendentesCount = presentStudents.filter(a => !a.homeworkStatus || a.homeworkStatus === 'Pendente').length;
+  if (badgePendentesEl) {
+    badgePendentesEl.textContent = pendentesCount;
+    badgePendentesEl.style.display = pendentesCount > 0 ? 'inline-block' : 'none';
+  }
+
+  if (summaryCountEl) {
+    summaryCountEl.textContent = `${presentStudents.length} ${presentStudents.length === 1 ? 'aluno' : 'alunos'} em sala`;
+  }
+
+  const searchVal = (document.getElementById('filterTarefasSearch')?.value || '').toLowerCase();
+  const filterType = State.tarefasFilter || 'all';
+
+  const filtered = presentStudents.filter(a => {
+    const matchesSearch = (a.studentName || '').toLowerCase().includes(searchVal) || (a.kumonId || '').toLowerCase().includes(searchVal);
+    if (!matchesSearch) return false;
+
+    const isPending = !a.homeworkStatus || a.homeworkStatus === 'Pendente';
+    if (filterType === 'pending') return isPending;
+    if (filterType === 'done') return !isPending;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    let emptyMsg = 'Nenhum aluno em sala no momento.';
+    if (presentStudents.length > 0) {
+      emptyMsg = 'Nenhum aluno encontrado para o filtro selecionado.';
+    } else {
+      emptyMsg = 'Nenhum aluno presente em sala no momento. Quando os alunos fizerem o check-in no Totem, eles aparecerão aqui para o registro da lição!';
+    }
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 40px 16px; background: #F8FAFC; border: 2px dashed #94A3B8; border-radius: 12px; color: #64748B;">
+        <div style="font-size: 3rem; margin-bottom: 8px;">🎒</div>
+        <div style="font-weight: 800; font-size: 1.1rem; color: #0B2545; margin-bottom: 4px;">Tudo organizado por aqui!</div>
+        <p style="font-size: 0.9rem; max-width: 360px; margin: 0 auto;">${emptyMsg}</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered.map(a => {
+    const student = State.students.find(s => s.kumonId === a.kumonId) || {
+      avatar: '🧑',
+      name: a.studentName
+    };
+
+    const hw = a.homeworkStatus || 'Pendente';
+    let hwBadge = '';
+    let cardBorderColor = '#0B2545';
+    let cardBg = '#FFFFFF';
+
+    if (hw === 'Fez tudo') {
+      hwBadge = '<span style="background: #DCFCE7; color: #166534; border: 1.5px solid #166534; padding: 4px 10px; border-radius: 999px; font-weight: 800; font-size: 0.78rem;">✅ Fez tudo</span>';
+    } else if (hw === 'Fez metade') {
+      hwBadge = '<span style="background: #FEF3C7; color: #92400E; border: 1.5px solid #92400E; padding: 4px 10px; border-radius: 999px; font-weight: 800; font-size: 0.78rem;">⚠️ Fez metade</span>';
+    } else if (hw === 'Não fez') {
+      hwBadge = '<span style="background: #FEE2E2; color: #991B1B; border: 1.5px solid #991B1B; padding: 4px 10px; border-radius: 999px; font-weight: 800; font-size: 0.78rem;">❌ Não fez</span>';
+    } else if (hw === 'Não trouxe') {
+      hwBadge = '<span style="background: #EDE9FE; color: #5B21B6; border: 1.5px solid #5B21B6; padding: 4px 10px; border-radius: 999px; font-weight: 800; font-size: 0.78rem;">🎒 Não trouxe</span>';
+    } else {
+      hwBadge = '<span style="background: #FFFBEB; color: #D97706; border: 1.5px solid #D97706; padding: 4px 10px; border-radius: 999px; font-weight: 800; font-size: 0.78rem;">⏳ Pendente</span>';
+      cardBorderColor = '#D97706';
+      cardBg = '#FFFDF5';
+    }
+
+    const noteDisplay = a.homeworkNote 
+      ? `<div style="font-size: 0.8rem; background: #F1F5F9; border-radius: 6px; padding: 6px 10px; margin-top: 8px; color: #334155; font-weight: 600;">💬 ${a.homeworkNote}</div>`
+      : '';
+
+    const subjectPills = (a.subjects || []).map(s => {
+      let bg = '#E0F2FE';
+      let col = '#0284C7';
+      if (s === 'Português') { bg = '#FEF3C7'; col = '#B45309'; }
+      else if (s === 'Inglês') { bg = '#FFEDD5'; col = '#C2410C'; }
+      return `<span style="display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 800; background: ${bg}; color: ${col}; border: 1px solid #0B2545;">${s}</span>`;
+    }).join(' ');
+
+    return `
+      <div class="neo-card" style="padding: 16px; border-color: ${cardBorderColor}; background: ${cardBg}; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 2rem;">${student.avatar || '👦'}</span>
+              <div>
+                <h3 style="font-family: var(--font-heading); font-size: 1.05rem; color: #0B2545; margin: 0;">${a.studentName}</h3>
+                <span style="font-size: 0.82rem; font-weight: 800; color: #0077B6;">${a.kumonId}</span>
+              </div>
+            </div>
+            ${hwBadge}
+          </div>
+
+          <div style="font-size: 0.78rem; color: #64748B; margin-bottom: 8px;">
+            🕒 Entrou às <strong>${a.checkInTime}</strong>
+          </div>
+
+          <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+            ${subjectPills}
+          </div>
+
+          ${noteDisplay}
+        </div>
+
+        <button type="button" class="btn-neo btn-primary" onclick="openHomeworkForAttendance('${a.id}', '${a.kumonId}')" style="width: 100%; justify-content: center; font-size: 0.88rem; padding: 8px;">
+          ${hw === 'Pendente' ? '📝 Lançar Lição' : '✏️ Alterar Lição'}
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function openHomeworkForAttendance(attendanceId, kumonId) {
+  const student = State.students.find(s => s.kumonId === kumonId) || { name: 'Aluno', kumonId: kumonId, avatar: '👦' };
+  openHomeworkCheckInModal(student, attendanceId);
+}
+
+// ==========================================================================
+// 17. GERENCIAMENTO DE PROFESSORES (EXCLUIR APENAS INVENTADOS)
+// ==========================================================================
+function renderTeachersManagementModal() {
+  const container = document.getElementById('teachersManagementList');
+  if (!container) return;
+
+  const teachers = getAllTeachers();
+
+  if (teachers.length === 0) {
+    container.innerHTML = '<div style="text-align: center; color: #64748B; padding: 24px;">Nenhum professor encontrado.</div>';
+    return;
+  }
+
+  container.innerHTML = teachers.map(t => {
+    const isReal = t.isRegistered;
+    const badgeHtml = isReal 
+      ? '<span style="background: #DCFCE7; color: #166534; border: 1.5px solid #166534; padding: 2px 8px; border-radius: 999px; font-weight: 800; font-size: 0.72rem;">🔐 Oficial (Google)</span>'
+      : '<span style="background: #FEF3C7; color: #92400E; border: 1.5px solid #92400E; padding: 2px 8px; border-radius: 999px; font-weight: 800; font-size: 0.72rem;">📝 Nome Avulso / Inventado</span>';
+
+    const linkedStudentsCount = (State.students || []).filter(s => (s.orientador || '').trim().toLowerCase() === t.name.trim().toLowerCase()).length;
+    const linkedSchedulesCount = (State.schedules || []).filter(s => (s.orientador || '').trim().toLowerCase() === t.name.trim().toLowerCase()).length;
+
+    const safeName = t.name.replace(/'/g, "\\'");
+    const actionBtnHtml = isReal
+      ? '<span style="font-size: 0.75rem; color: #64748B; font-weight: 700;">Protegido</span>'
+      : `<button type="button" class="btn-neo btn-sm" onclick="deleteInventedTeacher('${safeName}')" style="background: #FEE2E2; color: #B91C1C; border-color: #B91C1C; padding: 4px 10px; font-size: 0.78rem;" title="Apagar este orientador inventado da lista">
+           🗑️ Apagar
+         </button>`;
+
+    const avatarDisplay = t.photo 
+      ? `<img src="${t.photo}" style="width: 38px; height: 38px; border-radius: 50%; border: 2px solid #0B2545; object-fit: cover;">`
+      : `<span style="font-size: 1.6rem;">${t.avatar || '🧑‍🏫'}</span>`;
+
+    return `
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #F8FAFC; border: 2px solid #0B2545; border-radius: 10px; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+          ${avatarDisplay}
+          <div style="min-width: 0;">
+            <div style="font-weight: 800; font-size: 0.95rem; color: #0B2545; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${t.name}
+            </div>
+            <div style="font-size: 0.75rem; color: #64748B;">
+              ${linkedStudentsCount} ${linkedStudentsCount === 1 ? 'aluno vinculado' : 'alunos vinculados'}${linkedSchedulesCount > 0 ? ` • ${linkedSchedulesCount} horários` : ''}
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          ${badgeHtml}
+          ${actionBtnHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function deleteInventedTeacher(teacherName) {
+  if (!teacherName) return;
+
+  // Proteção: não permite apagar professores reais
+  const teachers = getAllTeachers();
+  const target = teachers.find(t => t.name === teacherName);
+  if (target && target.isRegistered) {
+    alert(`O orientador "${teacherName}" possui uma conta de professor oficial e não pode ser excluído.`);
+    return;
+  }
+
+  const affectedStudents = (State.students || []).filter(s => (s.orientador || '').trim().toLowerCase() === teacherName.trim().toLowerCase());
+  const affectedSchedules = (State.schedules || []).filter(s => (s.orientador || '').trim().toLowerCase() === teacherName.trim().toLowerCase());
+
+  const confirmed = confirm(`Tem certeza que deseja apagar o orientador inventado "${teacherName}"?\n\n• ${affectedStudents.length} aluno(s) vinculados terão o orientador limpo.\n• ${affectedSchedules.length} agendamento(s) vinculados serão removidos.`);
+  if (!confirmed) return;
+
+  try {
+    // 1. Limpa orientador nos alunos vinculados
+    for (const st of affectedStudents) {
+      st.orientador = '';
+      if (KumonFirebase.db && st.id) {
+        await KumonFirebase.db.collection('kumon_students').doc(st.id).update({
+          orientador: ''
+        }).catch(err => console.warn('Erro ao desvincular aluno:', err));
+      }
+    }
+
+    // 2. Remove agendamentos desse orientador
+    for (const sch of affectedSchedules) {
+      if (KumonFirebase.db && sch.id) {
+        await KumonFirebase.db.collection('kumon_schedules').doc(sch.id).delete().catch(() => {});
+      }
+    }
+    State.schedules = State.schedules.filter(s => (s.orientador || '').trim().toLowerCase() !== teacherName.trim().toLowerCase());
+
+    renderTeachersManagementModal();
+    renderScheduleTimeline();
+    updateScheduleTeacherFilterOptions();
+    populateTeacherSelectInStudentModal();
+    renderStudentsList();
+
+    alert(`Orientador "${teacherName}" removido com sucesso!`);
+  } catch (err) {
+    console.error('Erro ao remover orientador inventado:', err);
+    alert('Erro ao remover orientador: ' + (err.message || err));
+  }
+}
+
+// Expõe globalmente
+window.renderTarefasList = renderTarefasList;
+window.openHomeworkForAttendance = openHomeworkForAttendance;
+window.renderTeachersManagementModal = renderTeachersManagementModal;
+window.deleteInventedTeacher = deleteInventedTeacher;

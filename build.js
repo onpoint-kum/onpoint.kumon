@@ -12,6 +12,8 @@ const filesToCopy = [
   'audio.js',
   'firebase-config.js',
   'version.json',
+  'totem.html',
+  'totem.js',
   'imported_students.js',
   'imported_students.json'
 ];
