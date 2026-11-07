@@ -86,10 +86,11 @@ function initTotemAuth() {
 function initTotemFirestoreListeners() {
   if (!KumonFirebase.db) return;
 
-  // 1. Alunos em tempo real
+  // 1. Alunos em tempo real (Ordenados em ordem alfabética)
   KumonFirebase.db.collection('kumon_students')
     .onSnapshot((snapshot) => {
       TotemState.students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      TotemState.students.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
     }, err => console.error('Erro ao ouvir alunos no Totem:', err));
 
   // 2. Frequência / Presença de hoje
@@ -111,34 +112,45 @@ function updateTotemCounters() {
   if (todayCountEl) todayCountEl.textContent = TotemState.attendances.length;
 }
 
-// Inicializa a câmera do Totem
+let isSwitchingTotemCamera = false;
+
+// Inicializa a câmera do Totem — Sempre prioriza a traseira e abre automaticamente
 async function initTotemCamera() {
   const btnSwitch = document.getElementById('btnTotemSwitchCam');
+  btnSwitch?.removeEventListener('click', switchTotemCamera);
   btnSwitch?.addEventListener('click', switchTotemCamera);
 
   try {
     const devices = await Html5Qrcode.getCameras();
     if (devices && devices.length) {
       TotemState.availableCameras = devices;
-      // Prefere câmera frontal se disponível para tablets, ou a primeira encontrada
-      const frontCam = devices.find(d => 
-        d.label.toLowerCase().includes('front') || 
-        d.label.toLowerCase().includes('user') ||
-        d.label.toLowerCase().includes('frontal')
-      );
-      TotemState.currentCameraId = frontCam ? frontCam.id : devices[0].id;
+
+      // Prioriza câmera traseira/ambiente (back/rear/traseira/environment)
+      const backCam = devices.find(d => {
+        const lbl = (d.label || '').toLowerCase();
+        return lbl.includes('back') || 
+               lbl.includes('rear') || 
+               lbl.includes('traseira') || 
+               lbl.includes('environment') || 
+               lbl.includes('ambiente') ||
+               lbl.includes('externa');
+      });
+
+      // Se achou traseira usa ela; senão pega a última (na maioria dos dispositivos móveis a traseira é a última)
+      TotemState.currentCameraId = backCam ? backCam.id : devices[devices.length - 1].id;
 
       if (devices.length > 1 && btnSwitch) {
         btnSwitch.style.display = 'inline-flex';
       }
 
-      startTotemCamera();
+      await startTotemCamera();
     } else {
-      showCameraPlaceholder('Nenhuma câmera encontrada. Use o ID manual 👇');
+      // Fallback: tenta iniciar diretamente com facingMode environment
+      await startTotemCamera();
     }
   } catch (e) {
-    console.warn('Erro ao buscar câmeras do totem:', e);
-    showCameraPlaceholder('Câmera indisponível. Use o ID manual 👇');
+    console.warn('Erro ao buscar câmeras do totem, tentando modo padrão:', e);
+    await startTotemCamera();
   }
 }
 
@@ -167,9 +179,10 @@ async function startTotemCamera() {
       aspectRatio: 1.0
     };
 
+    // Sempre prioriza a câmera traseira (environment)
     const camConfig = TotemState.currentCameraId 
       ? TotemState.currentCameraId 
-      : { facingMode: "user" };
+      : { facingMode: { ideal: "environment" } };
 
     await TotemState.html5QrCode.start(
       camConfig,
@@ -184,27 +197,66 @@ async function startTotemCamera() {
 
   } catch (err) {
     console.error('Erro ao iniciar câmera no Totem:', err);
-    showCameraPlaceholder('Permissão de câmera negada. Use o ID manual 👇');
+    TotemState.isCameraActive = false;
+    showCameraPlaceholder('Câmera indisponível ou permissão pendente. Use o ID manual 👇');
   }
 }
 
 async function stopTotemCamera() {
-  if (!TotemState.isCameraActive || !TotemState.html5QrCode) return;
+  if (!TotemState.html5QrCode) return;
   try {
-    await TotemState.html5QrCode.stop();
+    if (TotemState.isCameraActive) {
+      await TotemState.html5QrCode.stop();
+    }
+  } catch (e) {
+    console.warn('Aviso ao parar câmera do totem:', e);
+  } finally {
     TotemState.isCameraActive = false;
-  } catch (e) {}
+  }
 }
 
 async function switchTotemCamera() {
-  if (TotemState.availableCameras.length < 2) return;
-  const currentIdx = TotemState.availableCameras.findIndex(d => d.id === TotemState.currentCameraId);
-  const nextIdx = (currentIdx + 1) % TotemState.availableCameras.length;
-  TotemState.currentCameraId = TotemState.availableCameras[nextIdx].id;
+  if (isSwitchingTotemCamera) return;
+  if (!TotemState.availableCameras || TotemState.availableCameras.length < 2) {
+    // Se ainda não tinha lista completa de câmeras, tenta buscar agora
+    try {
+      const devices = await Html5Qrcode.getCameras();
+      if (devices && devices.length > 1) {
+        TotemState.availableCameras = devices;
+      } else {
+        return;
+      }
+    } catch (e) {
+      return;
+    }
+  }
 
-  if (TotemState.isCameraActive) {
+  isSwitchingTotemCamera = true;
+  const btnSwitch = document.getElementById('btnTotemSwitchCam');
+  if (btnSwitch) {
+    btnSwitch.disabled = true;
+    btnSwitch.textContent = '⏳ Invertendo...';
+  }
+
+  try {
+    const currentIdx = TotemState.availableCameras.findIndex(d => d.id === TotemState.currentCameraId);
+    const nextIdx = (currentIdx + 1) % TotemState.availableCameras.length;
+    TotemState.currentCameraId = TotemState.availableCameras[nextIdx].id;
+
+    // Para o stream anterior e aguarda 350ms para liberação limpa do hardware pelo navegador
     await stopTotemCamera();
+    await new Promise(res => setTimeout(res, 350));
+
+    // Reinicia com a nova câmera
     await startTotemCamera();
+  } catch (err) {
+    console.error('Erro ao inverter câmera no totem:', err);
+  } finally {
+    isSwitchingTotemCamera = false;
+    if (btnSwitch) {
+      btnSwitch.disabled = false;
+      btnSwitch.textContent = '🔄 Alternar Câmera';
+    }
   }
 }
 
@@ -335,8 +387,19 @@ function showTotemSuccess(student, type, checkInTime, checkOutTime, durationMinu
   const detailEl = document.getElementById('totemSuccessDetail');
   const subjectsEl = document.getElementById('totemSuccessSubjects');
 
-  if (avatarEl) avatarEl.textContent = student.avatar || (student.isAdult ? '🧑' : '👦');
-  if (nameEl) nameEl.textContent = student.name;
+  if (avatarEl) {
+    if (student.photo) {
+      avatarEl.innerHTML = `<img src="${student.photo}" alt="${student.name}" style="width: 76px; height: 76px; border-radius: 50%; object-fit: cover; border: 3px solid #0B2545; box-shadow: 2px 2px 0px #0B2545;">`;
+    } else {
+      avatarEl.textContent = student.avatar || (student.isAdult ? '🧑' : '👦');
+    }
+  }
+
+  const kcBadgeHtml = student.isKumonConnect
+    ? `<span class="badge-kc" title="Kumon Connect - Tablet" style="display: inline-flex; align-items: center; gap: 4px; background: #FFE600; color: #0B2545; border: 2px solid #0B2545; border-radius: 999px; padding: 2px 8px; font-size: 0.75rem; font-weight: 800; vertical-align: middle; margin-left: 6px; box-shadow: 1.5px 1.5px 0px #0B2545;"><img src="assets/onpoint.png" alt="KC" style="width: 14px; height: 14px; object-fit: contain;">KC</span>`
+    : '';
+
+  if (nameEl) nameEl.innerHTML = `${student.name} ${kcBadgeHtml}`;
   if (idEl) idEl.textContent = `ID: ${student.kumonId}`;
 
   if (type === 'in') {

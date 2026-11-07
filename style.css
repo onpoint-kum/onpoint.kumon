@@ -2675,3 +2675,125 @@ body {
   font-weight: 800;
   cursor: pointer;
 }
+
+/* ==========================================================================
+   NOVOS ESTILOS: KUMON CONNECT (KC), FOTOS, MEDALHAS & QUADRO DE EVOLUÇÃO
+   ========================================================================== */
+.badge-kc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #FFE600;
+  color: #0B2545;
+  border: 1.5px solid #0B2545;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  box-shadow: 1.5px 1.5px 0px #0B2545;
+  vertical-align: middle;
+}
+
+.badge-kc img {
+  width: 13px;
+  height: 13px;
+  object-fit: contain;
+}
+
+.student-avatar-img {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid #0B2545;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 1.5px 1.5px 0px #0B2545;
+}
+
+.student-avatar-img-lg {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 2.5px solid #0B2545;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 2px 2px 0px #0B2545;
+}
+
+.stage-pill {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: #EEF2F6;
+  color: #1E293B;
+  border: 1px solid #CBD5E1;
+}
+
+.medal-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #F59E0B;
+}
+
+/* Quadro de Evolução */
+.evolution-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.evolution-column {
+  background: #F8FAFC;
+  border: 2px solid #0B2545;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 3px 3px 0px #0B2545;
+}
+
+.evolution-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #CBD5E1;
+}
+
+.evolution-column-title {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0B2545;
+  margin: 0;
+}
+
+.evolution-student-card {
+  background: #FFFFFF;
+  border: 1.5px solid #0B2545;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  box-shadow: 2px 2px 0px #0B2545;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+
+.evolution-student-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 3px 3px 0px #0B2545;
+}

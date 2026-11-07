@@ -162,6 +162,10 @@
           <span class="nav-label">Alunos</span>
           <span class="nav-counter" id="badgeTotalAlunos">0</span>
         </button>
+        <button class="nav-btn" data-tab="tab-evolucao">
+          <span class="nav-icon">📈</span>
+          <span class="nav-label">Evolução</span>
+        </button>
         <button class="nav-btn" data-tab="tab-materias">
           <span class="nav-icon">📚</span>
           <span class="nav-label">Matérias</span>
@@ -199,6 +203,7 @@
             </div>
             <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="tarefasFilterButtonGroup">
               <button type="button" class="btn-neo btn-sm btn-filter-tarefa active" data-filter="all">Todos em Sala</button>
+              <button type="button" class="btn-neo btn-sm btn-filter-tarefa" data-filter="today_all">📅 Todos de Hoje</button>
               <button type="button" class="btn-neo btn-sm btn-filter-tarefa" data-filter="pending">⏳ Apenas Pendentes</button>
               <button type="button" class="btn-neo btn-sm btn-filter-tarefa" data-filter="done">✅ Avaliados</button>
             </div>
@@ -263,7 +268,11 @@
             <!-- Lado Direito: Seleção do Aluno & Detalhes -->
             <div style="display: flex; flex-direction: column; gap: 18px;">
               <div style="background: var(--kumon-soft-bg); border: var(--border-thick); border-radius: var(--radius-md); padding: 18px;">
-                <label class="form-label" for="selectCardStudent">Selecione o Aluno para visualizar a carteirinha:</label>
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label class="form-label" for="inputCardSearchStudent">🔍 Pesquisar Carteirinha por Nome:</label>
+                  <input type="text" id="inputCardSearchStudent" class="neo-input" placeholder="Digite o nome do aluno para buscar..." style="width: 100%; font-weight: 700;">
+                </div>
+                <label class="form-label" for="selectCardStudent">Ou selecione na lista (ordem alfabética):</label>
                 <select id="selectCardStudent" class="neo-input" style="width: 100%; margin-bottom: 14px;">
                   <!-- Preenchido via JavaScript -->
                 </select>
@@ -467,6 +476,48 @@
       </section>
 
       <!-- ------------------------------------------------------------------------
+           NOVA ABA: QUADRO DE EVOLUÇÃO DOS ALUNOS (PROGRESSÃO POR ESTÁGIO & MEDALHAS)
+           ------------------------------------------------------------------------ -->
+      <section class="tab-pane" id="tab-evolucao">
+        <div class="neo-card">
+          <div class="neo-card-header" style="flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h2 class="neo-title"><span>📈</span> Quadro de Evolução dos Alunos</h2>
+              <p class="neo-subtitle">Acompanhe a progressão pedagógica, estágios atuais no Kumon e alunos medalhistas</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <span class="brand-badge" style="background:#FFE600; color:#0B2545; font-size: 0.85rem;" id="evolucaoTotalBadge">0 Alunos</span>
+              <span class="brand-badge" style="background:#DCFCE7; color:#15803D; font-size: 0.85rem;" id="evolucaoMedalsBadge">0 Medalhistas</span>
+              <span class="brand-badge" style="background:#E0E7FF; color:#3730A3; font-size: 0.85rem;" id="evolucaoKCBadge">0 Kumon Connect</span>
+            </div>
+          </div>
+
+          <!-- Filtros de Evolução -->
+          <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
+            <div style="flex: 1; min-width: 200px;">
+              <input type="text" id="filterEvolucaoSearch" class="neo-input" placeholder="🔍 Filtrar aluno no quadro..." style="font-size: 0.9rem; padding: 8px 12px; width: 100%;">
+            </div>
+            <select id="filterEvolucaoSubject" class="neo-input" style="font-size: 0.88rem; padding: 8px 12px; min-width: 150px;">
+              <option value="all">Todas as Matérias</option>
+              <option value="Matemática">Matemática</option>
+              <option value="Português">Português</option>
+              <option value="Inglês">Inglês</option>
+            </select>
+            <select id="filterEvolucaoKC" class="neo-input" style="font-size: 0.88rem; padding: 8px 12px; min-width: 150px;">
+              <option value="all">Todos os Métodos</option>
+              <option value="kc">📱 Kumon Connect (Tablet)</option>
+              <option value="papel">📝 Tradicional (Papel)</option>
+            </select>
+          </div>
+
+          <!-- Quadro em Colunas de Blocos de Estágios -->
+          <div id="evolutionBoardContainer" class="evolution-board-grid">
+            <!-- Preenchido via JavaScript -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------------------------
            ABA 5: GERENCIAMENTO DE MATÉRIAS (DISCIPLINAS DO KUMON)
            ------------------------------------------------------------------------ -->
       <section class="tab-pane" id="tab-materias">
@@ -496,6 +547,7 @@
               <p class="neo-subtitle">Registro completo de entradas, saídas e tempo de permanência</p>
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button type="button" class="btn-neo btn-warning" id="btnOpenDaily2010Report" style="background:#FFE600; color:#0B2545;">📋 Relatório 20:10 (Faltantes/Presentes)</button>
               <button class="btn-neo btn-success" id="btnExportCSV">📥 Exportar CSV (Excel)</button>
               <button class="btn-neo btn-primary" id="btnPrintReport">🖨️ Imprimir Folha de Frequência</button>
             </div>
@@ -740,13 +792,34 @@
           <input type="text" id="studentNameInput" class="neo-input" required placeholder="Ex: Lucas Henrique Santos" style="width: 100%;">
         </div>
 
+        <!-- Foto do Aluno (Comprimida no Canvas para economizar Firebase) -->
+        <div style="background: var(--kumon-soft-bg); border: var(--border-thick); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px;">
+          <label class="form-label" style="margin-bottom: 6px;">📸 Foto Oficial do Aluno</label>
+          <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+            <div id="studentPhotoPreviewContainer" style="width: 60px; height: 60px; border-radius: 50%; border: 2.5px solid #0B2545; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 2px 2px 0 #0B2545; flex-shrink: 0;">
+              <span id="studentPhotoFallbackEmoji" style="font-size: 2rem;">👦</span>
+              <img id="studentPhotoImg" src="" alt="Foto" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+            </div>
+            <div style="flex: 1; min-width: 180px;">
+              <input type="file" id="studentPhotoInput" accept="image/*" class="neo-input" style="padding: 6px; font-size: 0.8rem; width: 100%;">
+              <div style="font-size: 0.72rem; color: #64748B; margin-top: 4px;">
+                ⚡ A imagem é comprimida automaticamente para o Firebase não pesar!
+              </div>
+            </div>
+            <button type="button" class="btn-neo btn-outline btn-sm" id="btnRemoveStudentPhoto" style="display: none; padding: 4px 8px; font-size: 0.75rem;">
+              🗑️ Remover
+            </button>
+          </div>
+          <input type="hidden" id="studentPhotoBase64" value="">
+        </div>
+
         <div class="form-grid-2col">
           <div class="form-group">
             <label class="form-label" for="studentAgeInput">Idade do Aluno</label>
             <input type="number" id="studentAgeInput" class="neo-input" placeholder="Ex: 9 anos" style="width: 100%;">
           </div>
           <div class="form-group">
-            <label class="form-label" for="studentAvatarSelect">Avatar / Ícone</label>
+            <label class="form-label" for="studentAvatarSelect">Avatar / Ícone (Fallback)</label>
             <select id="studentAvatarSelect" class="neo-input" style="width: 100%;">
               <option value="👦">👦 Menino 1</option>
               <option value="👧">👧 Menina 1</option>
@@ -762,13 +835,45 @@
           </div>
         </div>
 
-        <!-- Opção de Aluno Adulto -->
-        <div style="background: var(--kumon-soft-bg); border: var(--border-thin); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;">
-          <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; cursor: pointer; color: var(--kumon-navy); margin-bottom: 0;">
-            <input type="checkbox" id="studentIsAdultCheck" style="width: 18px; height: 18px; cursor: pointer;">
-            <span>🧑 Aluno Adulto (Maior de 18 anos)</span>
-          </label>
-          <span class="brand-badge" style="background: #E0E7FF; color: #3730A3; font-size: 0.72rem;">DISPENSA RESPONSÁVEL</span>
+        <!-- Kumon Connect (KC - Tablet) & Aluno Adulto -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+          <div style="background: #FEFCE8; border: 2px solid #EAB308; border-radius: var(--radius-sm); padding: 10px 12px; display: flex; align-items: center; justify-content: space-between;">
+            <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; cursor: pointer; color: #854D0E; margin-bottom: 0; font-size: 0.85rem;">
+              <input type="checkbox" id="studentIsKCCheck" style="width: 18px; height: 18px; cursor: pointer;">
+              <span>📱 Kumon Connect (Tablet)</span>
+            </label>
+            <span class="badge-kc" style="background: #FFE600; color: #0B2545; border: 1.5px solid #0B2545; border-radius: 999px; padding: 2px 6px; font-size: 0.72rem; font-weight: 800; display: inline-flex; align-items: center; gap: 2px;">
+              <img src="assets/onpoint.png" style="width: 12px; height: 12px; object-fit: contain;"> KC
+            </span>
+          </div>
+
+          <div style="background: var(--kumon-soft-bg); border: var(--border-thin); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; align-items: center; justify-content: space-between;">
+            <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; cursor: pointer; color: var(--kumon-navy); margin-bottom: 0; font-size: 0.85rem;">
+              <input type="checkbox" id="studentIsAdultCheck" style="width: 18px; height: 18px; cursor: pointer;">
+              <span>🧑 Aluno Adulto (18+)</span>
+            </label>
+            <span class="brand-badge" style="background: #E0E7FF; color: #3730A3; font-size: 0.68rem;">DISPENSA</span>
+          </div>
+        </div>
+
+        <!-- Série Escolar, Estágio Atual & Medalhas Kumon -->
+        <div class="form-grid-2col">
+          <div class="form-group">
+            <label class="form-label" for="studentSchoolGradeInput">Série Escolar *</label>
+            <input type="text" id="studentSchoolGradeInput" class="neo-input" placeholder="Ex: 4º EF, 1º EM, F1" style="width: 100%;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="studentStageInput">Estágio Atual no Kumon</label>
+            <input type="text" id="studentStageInput" class="neo-input" placeholder="Ex: C, BII, F, G, H" style="width: 100%;">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="studentMedalsInput">Medalhas & Premiações Kumon</label>
+          <input type="text" id="studentMedalsInput" class="neo-input" placeholder="Ex: 🥇 Ouro 2025, 🥈 Prata 2024, 🥉 Bronze" style="width: 100%;">
+          <div style="font-size: 0.75rem; color: #64748B; margin-top: 3px;">
+            Digite as medalhas ou premiações que o aluno conquistou.
+          </div>
         </div>
 
         <!-- Vínculo com as matérias adicionadas pelos professores -->
@@ -995,6 +1100,12 @@
           <span class="homework-opt-icon">🎒</span>
           <span class="homework-opt-title">Não trouxe</span>
           <span class="homework-opt-desc">Esqueceu em casa</span>
+        </button>
+
+        <button type="button" class="homework-option-btn" data-status="Pendente" style="--opt-color: #D97706; --opt-bg: #FFFDF5; grid-column: 1 / -1;">
+          <span class="homework-opt-icon">⏳</span>
+          <span class="homework-opt-title">Pendente</span>
+          <span class="homework-opt-desc">Ainda não checado / reverter para pendente</span>
         </button>
       </div>
 
@@ -1404,6 +1515,169 @@
       <!-- Lista de Professores -->
       <div id="teachersManagementList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 180px; max-height: 420px; padding: 4px;">
         <!-- Preenchido dinamicamente via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: CONFIRMAÇÃO DE HORÁRIO DE SAÍDA (BATIMENTO DE PONTO)
+       ========================================================================== -->
+  <div class="neo-modal-overlay" id="modalConfirmCheckout">
+    <div class="neo-modal" style="max-width: 440px;">
+      <div class="neo-card-header" style="margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div id="checkoutModalAvatar" style="font-size: 2rem; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: #fff; border: var(--border-thick); border-radius: var(--radius-sm); overflow: hidden;">👦</div>
+          <div>
+            <h3 class="neo-title" style="font-size: 1.15rem; margin-bottom: 2px;">🏁 Confirmar Saída</h3>
+            <span style="font-size: 0.88rem; font-weight: 800; color: var(--kumon-blue-dark);" id="checkoutModalStudentName">Aluno</span>
+          </div>
+        </div>
+        <button type="button" class="btn-neo btn-outline" id="btnCloseCheckoutModal" style="padding: 4px 10px; font-size: 1.1rem;">✕</button>
+      </div>
+
+      <div style="background: #EBF8FF; border: 2px solid #0284C7; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 14px; font-size: 0.88rem; color: #0369A1;">
+        🕒 Entrada registrada às <strong id="checkoutModalCheckInTime">--:--</strong>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label class="form-label" style="margin-bottom: 8px;">Qual é o horário de saída do aluno?</label>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #F8FAFC; border: 2px solid #0B2545; border-radius: 8px; cursor: pointer; font-weight: 700;">
+            <input type="radio" name="checkoutTimeChoice" id="radioCheckoutNow" value="now" checked style="width: 18px; height: 18px;">
+            <span>⏱️ Saída agora mesmo (<strong id="checkoutTimeNowDisplay">--:--</strong>)</span>
+          </label>
+
+          <label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #F8FAFC; border: 2px solid #0B2545; border-radius: 8px; cursor: pointer; font-weight: 700;">
+            <input type="radio" name="checkoutTimeChoice" id="radioCheckoutCustom" value="custom" style="width: 18px; height: 18px;">
+            <span style="flex-shrink: 0;">✏️ Outro horário:</span>
+            <input type="time" id="checkoutCustomTimeInput" class="neo-input" style="padding: 4px 8px; font-weight: 800; font-size: 1rem; width: 130px;">
+          </label>
+        </div>
+      </div>
+
+      <input type="hidden" id="checkoutTargetKumonId" value="">
+      <input type="hidden" id="checkoutTargetRecordId" value="">
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn-neo btn-outline" id="btnCancelCheckout">Cancelar</button>
+        <button type="button" class="btn-neo btn-warning" id="btnConfirmCheckout" style="flex: 1; justify-content: center;">
+          🏁 Confirmar Saída
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: IMPRESSÃO EM LOTE DE CARTEIRINHAS (COM SELEÇÃO E VARIAÇÕES)
+       ========================================================================== -->
+  <div class="neo-modal-overlay" id="modalBatchPrintCards">
+    <div class="neo-modal" style="max-width: 640px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="neo-card-header" style="margin-bottom: 12px;">
+        <h3 class="neo-title" style="font-size: 1.2rem;">
+          <span>🖨️</span> Impressão de Carteirinhas em Lote
+        </h3>
+        <button type="button" class="btn-neo btn-outline" id="btnCloseBatchPrintModal" style="padding: 4px 10px; font-size: 1.1rem;">✕</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;">
+        <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+          <input type="text" id="batchPrintSearchInput" class="neo-input" placeholder="🔍 Filtrar alunos..." style="flex: 1; min-width: 180px;">
+          <div style="display: flex; gap: 6px;">
+            <button type="button" class="btn-neo btn-outline btn-sm" id="btnBatchSelectAll">Todos</button>
+            <button type="button" class="btn-neo btn-outline btn-sm" id="btnBatchDeselectAll">Nenhum</button>
+          </div>
+        </div>
+
+        <!-- Opção de Variação por Matéria -->
+        <div style="background: #FFFBEB; border: 2px solid #F59E0B; border-radius: 8px; padding: 10px 14px;">
+          <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; margin-bottom: 0;">
+            <input type="checkbox" id="batchPrintSplitSubjectsCheck" checked style="width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0;">
+            <div>
+              <div style="font-weight: 800; font-size: 0.88rem; color: #92400E;">
+                🏷️ Imprimir variações separadas por matéria para alunos com 2+ matérias
+              </div>
+              <div style="font-size: 0.78rem; color: #B45309;">
+                Ex: Se o aluno faz Matemática e Alfabetização/Português, serão geradas 2 carteirinhas personalizadas (uma de MT e outra de AB/LP).
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Lista de Alunos com Checkboxes -->
+      <div id="batchPrintStudentsList" style="flex: 1; overflow-y: auto; max-height: 45vh; border: var(--border-thin); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; background: #F8FAFC;">
+        <!-- Preenchido via JS -->
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; gap: 10px;">
+        <span style="font-size: 0.85rem; font-weight: 800; color: #0B2545;" id="batchPrintSelectedCount">
+          0 alunos selecionados
+        </span>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn-neo btn-outline" id="btnCancelBatchPrint">Cancelar</button>
+          <button type="button" class="btn-neo btn-primary" id="btnConfirmBatchPrint">
+            🖨️ Imprimir Selecionadas
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: RELATÓRIO DIÁRIO AUTOMÁTICO DAS 20:10 (PRESENTES E FALTANTES)
+       ========================================================================== -->
+  <div class="neo-modal-overlay" id="modalDaily2010Report">
+    <div class="neo-modal" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="neo-card-header" style="margin-bottom: 12px;">
+        <div>
+          <h3 class="neo-title" style="font-size: 1.25rem; margin-bottom: 2px;">
+            <span>📋</span> Relatório de Frequência das 20:10
+          </h3>
+          <span style="font-size: 0.82rem; font-weight: 700; color: var(--kumon-gray-muted);" id="daily2010ReportDate">
+            Fechamento de Frequência do Dia
+          </span>
+        </div>
+        <button type="button" class="btn-neo btn-outline" id="btnCloseDaily2010Report" style="padding: 4px 10px; font-size: 1.1rem;">✕</button>
+      </div>
+
+      <!-- Métricas Resumo -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px;">
+        <div style="background: #EBF8FF; border: 2px solid #0077B6; border-radius: 8px; padding: 10px; text-align: center;">
+          <div style="font-size: 0.72rem; font-weight: 800; color: #0077B6;">ESPERADOS HOJE</div>
+          <div style="font-size: 1.4rem; font-weight: 800; color: #0B2545;" id="daily2010StatEsperados">0</div>
+        </div>
+        <div style="background: #DCFCE7; border: 2px solid #166534; border-radius: 8px; padding: 10px; text-align: center;">
+          <div style="font-size: 0.72rem; font-weight: 800; color: #166534;">PRESENTES</div>
+          <div style="font-size: 1.4rem; font-weight: 800; color: #166534;" id="daily2010StatPresentes">0</div>
+        </div>
+        <div style="background: #FEE2E2; border: 2px solid #991B1B; border-radius: 8px; padding: 10px; text-align: center;">
+          <div style="font-size: 0.72rem; font-weight: 800; color: #991B1B;">FALTANTES</div>
+          <div style="font-size: 1.4rem; font-weight: 800; color: #991B1B;" id="daily2010StatFaltantes">0</div>
+        </div>
+      </div>
+
+      <!-- Abas de Visualização no Relatório -->
+      <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+        <button type="button" class="btn-neo btn-outline btn-sm active" id="btnReportTabFaltantes" style="flex: 1;">
+          🔴 Faltantes (<span id="countReportFaltantes">0</span>)
+        </button>
+        <button type="button" class="btn-neo btn-outline btn-sm" id="btnReportTabPresentes" style="flex: 1;">
+          🟢 Presentes (<span id="countReportPresentes">0</span>)
+        </button>
+      </div>
+
+      <!-- Lista do Relatório -->
+      <div id="daily2010ReportList" style="flex: 1; overflow-y: auto; max-height: 48vh; border: var(--border-thin); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: #F8FAFC;">
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; gap: 10px;">
+        <button type="button" class="btn-neo btn-outline" id="btnPrintDaily2010Report">
+          🖨️ Imprimir Relatório
+        </button>
+        <button type="button" class="btn-neo btn-primary" id="btnDoneDaily2010Report">
+          Entendido
+        </button>
       </div>
     </div>
   </div>
