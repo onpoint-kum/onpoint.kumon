@@ -1157,6 +1157,184 @@ body {
 }
 
 /* ==========================================================================
+   CARTEIRINHA DIGITAL DO PROFESSOR / ORIENTADOR (VIP NAVY & GOLD)
+   ========================================================================== */
+.card-type-toggle-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  align-items: center;
+  border-bottom: 2px solid #E2E8F0;
+  padding-bottom: 12px;
+}
+
+.card-type-btn {
+  font-family: var(--font-heading);
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.card-type-btn.active {
+  box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.2), var(--shadow-sm);
+  transform: translate(1px, 1px);
+}
+
+.kumon-teacher-card {
+  width: 100%;
+  max-width: 340px;
+  background: linear-gradient(180deg, #0B2545 0%, #102A4C 50%, #0B2545 100%);
+  border: 3.5px solid #FFD13B;
+  border-radius: 20px;
+  box-shadow: 6px 6px 0px #0B2545, 0 0 20px rgba(255, 209, 59, 0.25);
+  overflow: hidden;
+  position: relative;
+  color: #FFFFFF;
+  transition: transform 0.2s ease;
+  margin: 0 auto;
+}
+
+.kumon-teacher-card:hover {
+  transform: translateY(-4px);
+}
+
+.teacher-card-top-bar {
+  background: #FFD13B;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 3px solid #0B2545;
+}
+
+.teacher-card-logo-img {
+  height: 28px;
+  object-fit: contain;
+}
+
+.teacher-card-body {
+  padding: 20px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.teacher-card-avatar-wrap {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  border: 3.5px solid #FFD13B;
+  background: #FFE600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.8rem;
+  margin: 0 auto 10px;
+  box-shadow: 0 0 15px rgba(255, 209, 59, 0.35);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.teacher-card-avatar-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.teacher-card-name {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  line-height: 1.2;
+}
+
+.teacher-card-role {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #FCD34D;
+  margin-top: 3px;
+}
+
+.teacher-card-id-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1.5px solid #FFD13B;
+  border-radius: 999px;
+  padding: 3px 14px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: #FFE600;
+  margin: 8px 0 12px;
+  letter-spacing: 0.5px;
+}
+
+.teacher-card-email {
+  font-size: 0.75rem;
+  color: #94A3B8;
+  font-weight: 600;
+  margin-bottom: 12px;
+  word-break: break-all;
+}
+
+.teacher-card-qr-box {
+  background: #FFFFFF;
+  border: 3px solid #FFD13B;
+  border-radius: 14px;
+  padding: 10px;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  margin-bottom: 10px;
+  min-width: 140px;
+  min-height: 140px;
+}
+
+.teacher-card-qr-box canvas,
+.teacher-card-qr-box img {
+  width: 130px !important;
+  height: 130px !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+}
+
+.teacher-card-qr-box:has(img[src^="data:image"]) canvas {
+  display: none !important;
+}
+
+.teacher-card-qr-box img:not([src]),
+.teacher-card-qr-box img[src=""] {
+  display: none !important;
+}
+
+.teacher-card-instruction {
+  font-size: 0.72rem;
+  color: #CBD5E1;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.teacher-card-footer-strip {
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 2px solid rgba(255, 209, 59, 0.35);
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #FCD34D;
+  letter-spacing: 0.5px;
+}
+
+/* ==========================================================================
    ABA: MATÉRIAS DO KUMON
    ========================================================================== */
 .subjects-grid {
@@ -1894,7 +2072,8 @@ body {
   }
 
   /* Formato perfeito de cracházinho (ideal para colar no boletim escolar) */
-  .kumon-id-card {
+  .kumon-id-card,
+  .kumon-teacher-card {
     width: 85mm !important;
     max-width: 320px !important;
     box-shadow: none !important;
@@ -1906,10 +2085,25 @@ body {
     margin: 0 auto !important;
   }
 
+  .kumon-teacher-card {
+    background: #0B2545 !important;
+    color: #FFFFFF !important;
+    border: 3px solid #FFD13B !important;
+  }
+
   .card-top-bar {
     background-color: #0099D8 !important;
     border-bottom: 2.5px solid #142232 !important;
     padding: 10px 14px !important;
+  }
+
+  .teacher-card-top-bar {
+    background-color: #FFD13B !important;
+    border-bottom: 2.5px solid #0B2545 !important;
+    padding: 10px 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   /* Garante que o logotipo fique 100% visível tanto em cores quanto em P&B */

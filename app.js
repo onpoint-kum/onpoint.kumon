@@ -21,6 +21,10 @@ const State = {
   isProcessingScan: false,
   recentScans: new Map(),
   registeredTeachers: [],
+  teacherAttendances: [],
+  selectedTeacherForCard: null,
+  cardViewType: 'student',
+  historyViewType: 'student',
   historyPeriodFilter: 'today',
   tarefasFilter: 'all'
 };
@@ -93,6 +97,46 @@ function generateNextKumonId(studentsList) {
   });
   const nextNum = maxNum + 1;
   return `KUM-${String(nextNum).padStart(4, '0')}`;
+}
+
+// Gerador Automático de ID de Professor (Sempre prefixo "PROF-")
+function generateNextTeacherId(teachersList) {
+  let maxNum = 0;
+  (teachersList || []).forEach(t => {
+    if (t.teacherId && t.teacherId.startsWith('PROF-')) {
+      const numPart = parseInt(t.teacherId.replace('PROF-', ''), 10);
+      if (!isNaN(numPart) && numPart > maxNum) {
+        maxNum = numPart;
+      }
+    }
+  });
+  const nextNum = maxNum + 1;
+  return `PROF-${String(nextNum).padStart(4, '0')}`;
+}
+
+// Garante que todo professor registrado com Google tenha um teacherId único
+function ensureTeacherIds(teachersList) {
+  const usedNums = new Set();
+  (teachersList || []).forEach(t => {
+    if (t.teacherId && t.teacherId.startsWith('PROF-')) {
+      const num = parseInt(t.teacherId.replace('PROF-', ''), 10);
+      if (!isNaN(num)) usedNums.add(num);
+    }
+  });
+
+  let nextNum = 1;
+  (teachersList || []).forEach(t => {
+    if (!t.teacherId || !t.teacherId.startsWith('PROF-')) {
+      while (usedNums.has(nextNum)) nextNum++;
+      t.teacherId = `PROF-${String(nextNum).padStart(4, '0')}`;
+      usedNums.add(nextNum);
+      if (KumonFirebase.db && t.id) {
+        KumonFirebase.db.collection('kumon_teachers').doc(t.id).update({
+          teacherId: t.teacherId
+        }).catch(err => console.warn('Erro ao salvar teacherId no Firestore:', err));
+      }
+    }
+  });
 }
 
 // ==========================================================================
@@ -374,12 +418,40 @@ function initFirestoreListeners() {
   const unsubTeachers = KumonFirebase.db.collection('kumon_teachers')
     .onSnapshot((snapshot) => {
       State.registeredTeachers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      ensureTeacherIds(State.registeredTeachers);
       updateScheduleTeacherFilterOptions();
       populateTeacherSelectInStudentModal();
       renderScheduleTimeline();
       renderTeachersManagementModal();
+      updateCardTeacherSelect();
+      if (State.selectedTeacherForCard) {
+        renderTeacherCard(State.selectedTeacherForCard.teacherId || State.selectedTeacherForCard.id);
+      }
     }, (error) => console.error('Erro ao ouvir professores cadastrados:', error));
   KumonFirebase.unsubscribers.push(unsubTeachers);
+
+  // 5. Ponto dos Professores (kumon_teacher_attendance)
+  const unsubTeacherAttendance = KumonFirebase.db.collection('kumon_teacher_attendance')
+    .orderBy('date', 'desc')
+    .limit(500)
+    .onSnapshot((snapshot) => {
+      State.teacherAttendances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderTeacherHistoryTable();
+      if (State.selectedTeacherForCard) {
+        renderTeacherCard(State.selectedTeacherForCard.teacherId || State.selectedTeacherForCard.id);
+      }
+    }, (error) => {
+      console.warn('Fallback no ponto de professores sem índice ordenado:', error);
+      KumonFirebase.db.collection('kumon_teacher_attendance')
+        .onSnapshot((snapshot) => {
+          State.teacherAttendances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          renderTeacherHistoryTable();
+          if (State.selectedTeacherForCard) {
+            renderTeacherCard(State.selectedTeacherForCard.teacherId || State.selectedTeacherForCard.id);
+          }
+        });
+    });
+  KumonFirebase.unsubscribers.push(unsubTeacherAttendance);
 
   // 4. Grade de Horários & Escala
   const unsubSchedules = KumonFirebase.db.collection('kumon_schedules')
@@ -997,6 +1069,263 @@ function renderStudentCard(kumonId) {
   }
 
   updateCardStats(student.kumonId);
+}
+
+// ==========================================================================
+// 7.1 CARTEIRINHA DIGITAL DO PROFESSOR (ESTILO VIP NAVY & GOLD)
+// ==========================================================================
+function switchCardViewType(type) {
+  State.cardViewType = type;
+  const btnStudents = document.getElementById('btnTabCardStudents');
+  const btnTeachers = document.getElementById('btnTabCardTeachers');
+  const sectionStudents = document.getElementById('cardStudentsSection');
+  const sectionTeachers = document.getElementById('cardTeachersSection');
+  const btnPrintCard = document.getElementById('btnPrintCard');
+  const btnPrintAll = document.getElementById('btnPrintAllCards');
+
+  if (type === 'teacher') {
+    btnStudents?.classList.remove('active');
+    btnTeachers?.classList.add('active');
+    if (sectionStudents) sectionStudents.style.display = 'none';
+    if (sectionTeachers) sectionTeachers.style.display = 'block';
+    if (btnPrintCard) btnPrintCard.style.display = 'none';
+    if (btnPrintAll) btnPrintAll.style.display = 'none';
+    updateCardTeacherSelect();
+  } else {
+    btnTeachers?.classList.remove('active');
+    btnStudents?.classList.add('active');
+    if (sectionStudents) sectionStudents.style.display = 'block';
+    if (sectionTeachers) sectionTeachers.style.display = 'none';
+    if (btnPrintCard) btnPrintCard.style.display = 'inline-flex';
+    if (btnPrintAll) btnPrintAll.style.display = 'inline-flex';
+    if (State.selectedStudentForCard) {
+      renderStudentCard(State.selectedStudentForCard.kumonId);
+    }
+  }
+}
+
+function updateCardTeacherSelect(filterTerm = '') {
+  const select = document.getElementById('selectCardTeacher');
+  if (!select) return;
+
+  const currentVal = select.value;
+  select.innerHTML = '';
+
+  const registered = getAllTeachers().filter(t => t.isRegistered);
+
+  if (registered.length === 0) {
+    select.innerHTML = '<option value="">Nenhum professor oficial cadastrado</option>';
+    document.getElementById('cardTeacherName').textContent = 'Nenhum Professor';
+    document.getElementById('cardTeacherId').textContent = 'ID: PROF-0000';
+    document.getElementById('cardTeacherAvatar').textContent = '👨‍🏫';
+    document.getElementById('cardTeacherEmail').textContent = '—';
+    document.getElementById('cardTeacherQrContainer').innerHTML = '<div style="font-size:0.75rem; color:#94A3B8; padding:20px 10px; text-align:center;">Cadastre-se na Área do Professor para gerar seu crachá oficial!</div>';
+    return;
+  }
+
+  const cleanFilter = (filterTerm || '').trim().toLowerCase();
+  const sorted = [...registered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+
+  const matching = sorted.filter(t => {
+    if (!cleanFilter) return true;
+    return (t.name || '').toLowerCase().includes(cleanFilter) || 
+           (t.fullName || '').toLowerCase().includes(cleanFilter) ||
+           (t.teacherId || '').toLowerCase().includes(cleanFilter) ||
+           (t.email || '').toLowerCase().includes(cleanFilter);
+  });
+
+  if (matching.length === 0) {
+    select.innerHTML = '<option value="">Nenhum professor encontrado para a busca</option>';
+    return;
+  }
+
+  matching.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.teacherId || t.id || t.name;
+    const tid = t.teacherId || 'PROF-0001';
+    opt.textContent = `${tid} • ${t.name} (${t.fullName || t.name})`;
+    select.appendChild(opt);
+  });
+
+  // Prioriza o professor atualmente logado se houver
+  const currentTeacherId = State.currentTeacher ? (State.currentTeacher.teacherId || State.currentTeacher.uid) : null;
+
+  if (currentVal && matching.some(t => (t.teacherId === currentVal || t.id === currentVal || t.name === currentVal))) {
+    select.value = currentVal;
+  } else if (currentTeacherId && matching.some(t => (t.teacherId === currentTeacherId || t.id === currentTeacherId))) {
+    const found = matching.find(t => (t.teacherId === currentTeacherId || t.id === currentTeacherId));
+    select.value = found ? (found.teacherId || found.id || found.name) : matching[0].teacherId;
+  } else {
+    select.value = matching[0].teacherId || matching[0].id || matching[0].name;
+  }
+
+  renderTeacherCard(select.value);
+}
+
+function renderTeacherCard(identifier) {
+  const registered = getAllTeachers().filter(t => t.isRegistered);
+  const teacher = registered.find(t => 
+    (t.teacherId && t.teacherId === identifier) || 
+    (t.id && t.id === identifier) || 
+    t.name === identifier ||
+    (t.email && t.email === identifier)
+  );
+
+  if (!teacher) return;
+  State.selectedTeacherForCard = teacher;
+
+  const nameEl = document.getElementById('cardTeacherName');
+  if (nameEl) nameEl.textContent = teacher.name;
+
+  const roleEl = document.getElementById('cardTeacherRole');
+  if (roleEl) roleEl.textContent = 'ORIENTADOR(A) PEDAGÓGICO(A)';
+
+  const idBadgeEl = document.getElementById('cardTeacherId');
+  if (idBadgeEl) idBadgeEl.textContent = `ID: ${teacher.teacherId || 'PROF-0001'}`;
+
+  const emailEl = document.getElementById('cardTeacherEmail');
+  if (emailEl) emailEl.textContent = teacher.email || 'equipe@kumon.com.br';
+
+  const avatarEl = document.getElementById('cardTeacherAvatar');
+  if (avatarEl) {
+    if (teacher.photo) {
+      avatarEl.innerHTML = `<img src="${teacher.photo}" alt="${teacher.name}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+    } else {
+      avatarEl.textContent = teacher.avatar || '👨‍🏫';
+    }
+  }
+
+  // Gera o QR Code oficial do Professor
+  const qrContainer = document.getElementById('cardTeacherQrContainer');
+  if (qrContainer) {
+    qrContainer.innerHTML = '';
+    try {
+      new QRCode(qrContainer, {
+        text: teacher.teacherId || teacher.email || 'PROF-0001',
+        width: 130,
+        height: 130,
+        colorDark: "#0B2545",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      setTimeout(() => {
+        const img = qrContainer.querySelector('img');
+        const cvs = qrContainer.querySelector('canvas');
+        if (img && img.src && (img.src.startsWith('data:image') || img.src.length > 50)) {
+          if (cvs) cvs.remove();
+          img.style.display = 'block';
+        } else if (cvs) {
+          cvs.style.display = 'block';
+          if (img) img.remove();
+        }
+      }, 50);
+    } catch (err) {
+      console.error('Erro ao gerar QRCode do professor:', err);
+    }
+  }
+
+  // Atualiza métricas do professor (Horas no mês & Status Atual)
+  updateTeacherCardStats(teacher);
+}
+
+function updateTeacherCardStats(teacher) {
+  const currentMonthStr = getTodayDateString().substring(0, 7); // "YYYY-MM"
+  const todayStr = getTodayDateString();
+
+  const attendances = (State.teacherAttendances || []).filter(a => 
+    (a.teacherId === teacher.teacherId || (teacher.email && a.email === teacher.email) || a.teacherName === teacher.name)
+  );
+
+  // 1. Total de Horas no Mês
+  let totalMinMonth = 0;
+  attendances.forEach(a => {
+    if (a.date && a.date.startsWith(currentMonthStr) && a.durationMinutes) {
+      totalMinMonth += Number(a.durationMinutes);
+    }
+  });
+
+  const hours = Math.floor(totalMinMonth / 60);
+  const mins = totalMinMonth % 60;
+  const hoursEl = document.getElementById('cardTeacherStatHours');
+  if (hoursEl) hoursEl.textContent = `${hours}h ${String(mins).padStart(2, '0')}m`;
+
+  // 2. Status Atual (Hoje)
+  const openToday = attendances.find(a => a.date === todayStr && a.status === 'in');
+  const statusEl = document.getElementById('cardTeacherStatStatus');
+  if (statusEl) {
+    if (openToday) {
+      statusEl.innerHTML = `<span style="color: #15803D;">🟢 Em Turno (${openToday.checkInTime})</span>`;
+    } else {
+      statusEl.innerHTML = `<span style="color: var(--kumon-gray-muted);">⚪ Fora da Unidade</span>`;
+    }
+  }
+}
+
+// Bater ponto manual do professor diretamente pelo painel
+async function simulateTeacherCardCheckIn() {
+  if (!State.selectedTeacherForCard) {
+    alert('Selecione um(a) professor(a) primeiro.');
+    return;
+  }
+
+  const teacher = State.selectedTeacherForCard;
+  const todayStr = getTodayDateString();
+  const timeStr = getCurrentTimeString();
+
+  const openRecord = (State.teacherAttendances || []).find(a => 
+    (a.teacherId === teacher.teacherId || (teacher.email && a.email === teacher.email) || a.teacherName === teacher.name) &&
+    a.date === todayStr &&
+    a.status === 'in'
+  );
+
+  if (openRecord) {
+    const durationMin = calculateDurationMinutes(openRecord.checkInTime, timeStr);
+    if (KumonFirebase.db && openRecord.id) {
+      await KumonFirebase.db.collection('kumon_teacher_attendance').doc(openRecord.id).update({
+        checkOutTime: timeStr,
+        durationMinutes: durationMin,
+        status: 'out',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    if (window.kumonAudio) window.kumonAudio.playCheckOut();
+    alert(`👋 Saída registrada para ${teacher.name} às ${timeStr}!\nTurno de ${Math.floor(durationMin / 60)}h ${durationMin % 60}m.`);
+  } else {
+    const newRecord = {
+      teacherId: teacher.teacherId || 'PROF-0001',
+      teacherName: teacher.name,
+      fullName: teacher.fullName || teacher.name,
+      email: teacher.email || '',
+      photo: teacher.photo || '',
+      date: todayStr,
+      checkInTime: timeStr,
+      checkOutTime: null,
+      durationMinutes: null,
+      status: 'in',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (KumonFirebase.db) {
+      await KumonFirebase.db.collection('kumon_teacher_attendance').add(newRecord);
+    }
+    if (window.kumonAudio) window.kumonAudio.playCheckIn();
+    alert(`🟢 Entrada registrada para ${teacher.name} às ${timeStr}! Bom trabalho.`);
+  }
+}
+
+function printTeacherCard() {
+  window.print();
+}
+
+function viewTeacherCard(identifier) {
+  switchTab('tab-carteirinha');
+  switchCardViewType('teacher');
+  const select = document.getElementById('selectCardTeacher');
+  if (select) {
+    const opt = Array.from(select.options).find(o => o.value === identifier || o.text.includes(identifier));
+    if (opt) select.value = opt.value;
+  }
+  renderTeacherCard(identifier);
 }
 
 // ==========================================================================
@@ -3039,6 +3368,180 @@ function exportHistoryCSV() {
 }
 
 // ==========================================================================
+// 11.1 PONTO DOS PROFESSORES (RH) & EXPORTAÇÃO CSV
+// ==========================================================================
+function switchHistoryViewType(type) {
+  State.historyViewType = type;
+  const btnStudents = document.getElementById('btnHistoryTabStudents');
+  const btnTeachers = document.getElementById('btnHistoryTabTeachers');
+  const sectionStudents = document.getElementById('historyStudentsSection');
+  const sectionTeachers = document.getElementById('historyTeachersSection');
+
+  if (type === 'teacher') {
+    btnStudents?.classList.remove('active');
+    btnTeachers?.classList.add('active');
+    if (sectionStudents) sectionStudents.style.display = 'none';
+    if (sectionTeachers) sectionTeachers.style.display = 'block';
+    renderTeacherHistoryTable();
+  } else {
+    btnTeachers?.classList.remove('active');
+    btnStudents?.classList.add('active');
+    if (sectionStudents) sectionStudents.style.display = 'block';
+    if (sectionTeachers) sectionTeachers.style.display = 'none';
+    renderHistoryTable();
+  }
+}
+
+function renderTeacherHistoryTable() {
+  const tbody = document.getElementById('teacherHistoryTableBody');
+  if (!tbody) return;
+
+  const searchVal = (document.getElementById('filterSearchTeacherHistory')?.value || '').toLowerCase().trim();
+  const periodVal = State.historyPeriodFilter || 'today';
+
+  const todayStr = getTodayDateString();
+  const yesterdayStr = getDateStringOffset(-1);
+  const sevenDaysAgoStr = getDateStringOffset(-7);
+  const fifteenDaysAgoStr = getDateStringOffset(-15);
+  const thirtyDaysAgoStr = getDateStringOffset(-30);
+
+  const filtered = (State.teacherAttendances || []).filter(a => {
+    // 1. Filtro de Período
+    if (periodVal === 'today') {
+      if (a.date !== todayStr) return false;
+    } else if (periodVal === 'yesterday') {
+      if (a.date !== yesterdayStr) return false;
+    } else if (periodVal === '7days') {
+      if (!a.date || a.date < sevenDaysAgoStr || a.date > todayStr) return false;
+    } else if (periodVal === '15days') {
+      if (!a.date || a.date < fifteenDaysAgoStr || a.date > todayStr) return false;
+    } else if (periodVal === '30days') {
+      if (!a.date || a.date < thirtyDaysAgoStr || a.date > todayStr) return false;
+    }
+
+    // 2. Filtro de Busca (Nome, Email ou ID)
+    if (searchVal) {
+      const match = (a.teacherName || '').toLowerCase().includes(searchVal) ||
+                    (a.fullName || '').toLowerCase().includes(searchVal) ||
+                    (a.teacherId || '').toLowerCase().includes(searchVal) ||
+                    (a.email || '').toLowerCase().includes(searchVal);
+      if (!match) return false;
+    }
+
+    return true;
+  });
+
+  // Atualiza métricas de resumo
+  let totalMin = 0;
+  filtered.forEach(a => {
+    if (a.durationMinutes) totalMin += Number(a.durationMinutes);
+  });
+
+  const totH = Math.floor(totalMin / 60);
+  const totM = totalMin % 60;
+  const totalHoursEl = document.getElementById('teacherHistoryTotalHours');
+  if (totalHoursEl) totalHoursEl.textContent = `${totH}h ${String(totM).padStart(2, '0')}m`;
+
+  const totalShiftsEl = document.getElementById('teacherHistoryTotalShifts');
+  if (totalShiftsEl) totalShiftsEl.textContent = `${filtered.length} turnos`;
+
+  const activeNowCount = (State.teacherAttendances || []).filter(a => a.date === todayStr && a.status === 'in').length;
+  const activeNowEl = document.getElementById('teacherHistoryActiveNow');
+  if (activeNowEl) activeNowEl.textContent = `${activeNowCount} profs`;
+
+  if (filtered.length === 0) {
+    let emptyPeriodText = 'para este período';
+    if (periodVal === 'today') emptyPeriodText = 'para hoje';
+    else if (periodVal === 'yesterday') emptyPeriodText = 'para ontem';
+
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" style="text-align: center; padding: 28px; color: var(--kumon-gray-muted);">
+          Nenhum registro de ponto de professor encontrado ${emptyPeriodText}.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(a => {
+    const isNow = a.status === 'in';
+    const statusBadge = isNow
+      ? '<span style="background: #DCFCE7; color: #166534; border: 1.5px solid #166534; padding: 3px 10px; border-radius: 999px; font-weight: 800; font-size: 0.75rem;">🟢 Em Turno</span>'
+      : '<span style="background: #F1F5F9; color: #475569; border: 1.5px solid #CBD5E1; padding: 3px 10px; border-radius: 999px; font-weight: 800; font-size: 0.75rem;">🏁 Finalizado</span>';
+
+    let dur = '—';
+    if (a.durationMinutes) {
+      const h = Math.floor(a.durationMinutes / 60);
+      const m = a.durationMinutes % 60;
+      dur = h > 0 ? `${h}h ${m}m` : `${m} min`;
+    } else if (isNow) {
+      dur = '<span style="color:#16A34A; font-weight:800;">Trabalhando...</span>';
+    }
+
+    const avatarHtml = a.photo 
+      ? `<img src="${a.photo}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid #0B2545;">`
+      : `<span style="font-size: 1.2rem;">👨‍🏫</span>`;
+
+    return `
+      <tr>
+        <td><strong>${formatDisplayDate(a.date)}</strong></td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${avatarHtml}
+            <div>
+              <strong>${a.teacherName || a.fullName || 'Orientador(a)'}</strong>
+              ${a.email ? `<div style="font-size: 0.72rem; color: #64748B;">${a.email}</div>` : ''}
+            </div>
+          </div>
+        </td>
+        <td><strong style="color: #0077B6;">${a.teacherId || 'PROF-0001'}</strong></td>
+        <td><strong>${a.checkInTime || '—'}</strong></td>
+        <td><strong>${a.checkOutTime || '—'}</strong></td>
+        <td><strong>${dur}</strong></td>
+        <td>${statusBadge}</td>
+        <td style="text-align: right;">
+          <button class="btn-neo btn-outline" style="padding: 3px 8px; font-size: 0.75rem; color: var(--kumon-red);" onclick="deleteTeacherAttendanceRecord('${a.id}')" title="Excluir Registro de Ponto">
+            🗑️
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function deleteTeacherAttendanceRecord(id) {
+  if (!id) return;
+  if (!confirm('Deseja realmente excluir este registro de ponto do professor?')) return;
+
+  if (KumonFirebase.db) {
+    await KumonFirebase.db.collection('kumon_teacher_attendance').doc(id).delete();
+  } else {
+    State.teacherAttendances = State.teacherAttendances.filter(a => a.id !== id);
+    renderTeacherHistoryTable();
+  }
+}
+
+function exportTeacherHistoryCSV() {
+  if (!State.teacherAttendances || State.teacherAttendances.length === 0) {
+    alert('Não há registros de ponto dos professores para exportar.');
+    return;
+  }
+
+  let csv = '\uFEFFData;ID Professor;Professor;Email;Entrada;Saida;Duracao_Minutos;Horas_Trabalhadas;Status\n';
+  State.teacherAttendances.forEach(a => {
+    const durH = a.durationMinutes ? `${Math.floor(a.durationMinutes / 60)}h ${a.durationMinutes % 60}m` : '';
+    csv += `${a.date};${a.teacherId || ''};"${a.teacherName || ''}";"${a.email || ''}";${a.checkInTime || ''};${a.checkOutTime || ''};${a.durationMinutes || ''};"${durH}";${a.status}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `Kumon_Ponto_Professores_${getTodayDateString()}.csv`;
+  link.click();
+}
+
+// ==========================================================================
 // 12. CHIPS DE TESTE RÁPIDO & BADGES
 // ==========================================================================
 function renderQuickTestChips() {
@@ -3169,14 +3672,14 @@ function initUIEventListeners() {
     renderStudentCard(e.target.value);
   });
 
-  // Bater ponto a partir da carteirinha
+  // Bater ponto a partir da carteirinha de aluno
   document.getElementById('btnSimulateCardCheckIn')?.addEventListener('click', () => {
     if (State.selectedStudentForCard) {
       handleCheckInOut(State.selectedStudentForCard.kumonId);
     }
   });
 
-  // Imprimir Carteirinha Individual
+  // Imprimir Carteirinha Individual de Aluno
   document.getElementById('btnPrintCard')?.addEventListener('click', () => {
     window.print();
   });
@@ -3184,13 +3687,46 @@ function initUIEventListeners() {
   // Imprimir Todas as Carteirinhas em Lote (Modal com Seleção Múltipla e Variações por Matéria)
   document.getElementById('btnPrintAllCards')?.addEventListener('click', openBatchPrintModal);
 
+  // Alternar Tipo de Carteirinha (Alunos vs Professores)
+  document.getElementById('btnTabCardStudents')?.addEventListener('click', () => switchCardViewType('student'));
+  document.getElementById('btnTabCardTeachers')?.addEventListener('click', () => switchCardViewType('teacher'));
+
+  // Seleção e Busca de Professores na Carteirinha
+  document.getElementById('selectCardTeacher')?.addEventListener('change', (e) => {
+    renderTeacherCard(e.target.value);
+  });
+  document.getElementById('inputCardSearchTeacher')?.addEventListener('input', (e) => {
+    updateCardTeacherSelect(e.target.value);
+  });
+
+  // Ações da Carteirinha do Professor
+  document.getElementById('btnPrintTeacherCard')?.addEventListener('click', printTeacherCard);
+  document.getElementById('btnSimulateTeacherCardCheckIn')?.addEventListener('click', simulateTeacherCardCheckIn);
+
+  // Botão no Cabeçalho: Minha Carteirinha de Professor
+  document.getElementById('btnHeaderMyTeacherCard')?.addEventListener('click', () => {
+    const currentId = State.currentTeacher ? (State.currentTeacher.teacherId || State.currentTeacher.uid || State.currentTeacher.nickname) : null;
+    viewTeacherCard(currentId || '');
+  });
+
+  // Alternar Tipo de Histórico (Alunos vs Professores RH)
+  document.getElementById('btnHistoryTabStudents')?.addEventListener('click', () => switchHistoryViewType('student'));
+  document.getElementById('btnHistoryTabTeachers')?.addEventListener('click', () => switchHistoryViewType('teacher'));
+  document.getElementById('filterSearchTeacherHistory')?.addEventListener('input', () => renderTeacherHistoryTable());
+
   // Imprimir Relatório
   document.getElementById('btnPrintReport')?.addEventListener('click', () => {
     window.print();
   });
 
-  // Exportar CSV
-  document.getElementById('btnExportCSV')?.addEventListener('click', exportHistoryCSV);
+  // Exportar CSV (Alunos ou Professores dependendo da visão atual)
+  document.getElementById('btnExportCSV')?.addEventListener('click', () => {
+    if (State.historyViewType === 'teacher') {
+      exportTeacherHistoryCSV();
+    } else {
+      exportHistoryCSV();
+    }
+  });
 
   // Perfil do Professor Modal (Abre Mini Perfil)
   document.getElementById('btnTeacherProfilePill')?.addEventListener('click', () => {
@@ -4024,6 +4560,7 @@ function getAllTeachers() {
     if (nick && !isDevAccount(t.email) && !isDevAccount(nick)) {
       teachersMap.set(nick, {
         id: t.id || t.uid,
+        teacherId: t.teacherId || '',
         name: nick,
         fullName: t.fullName || nick,
         email: t.email || '',
@@ -4041,6 +4578,7 @@ function getAllTeachers() {
     if (!isDevAccount(currentUserEmail) && !isDevAccount(nick) && !teachersMap.has(nick)) {
       teachersMap.set(nick, {
         id: State.currentTeacher.uid || 'current',
+        teacherId: State.currentTeacher.teacherId || '',
         name: nick,
         fullName: State.currentTeacher.fullName || nick,
         email: currentUserEmail,
@@ -5370,8 +5908,14 @@ function renderTeachersManagementModal() {
       </button>
     `;
 
+    const cardBtnHtml = isReal
+      ? `<button type="button" class="btn-neo btn-sm" onclick="viewTeacherCard('${safeName}'); document.getElementById('teachersManagementModalOverlay')?.classList.remove('active');" style="background: #0B2545; color: #FFD13B; border-color: #0B2545; padding: 3px 8px; font-size: 0.72rem; font-weight: 800;" title="Ver Carteirinha Digital deste Orientador">
+           🪪 Carteirinha
+         </button>`
+      : '';
+
     const actionBtnHtml = isReal
-      ? '<span style="font-size: 0.75rem; color: #64748B; font-weight: 700;">Protegido</span>'
+      ? '<span style="font-size: 0.75rem; color: #166534; font-weight: 800;">Protegido</span>'
       : `<button type="button" class="btn-neo btn-sm" onclick="deleteInventedTeacher('${safeName}')" style="background: #FEE2E2; color: #B91C1C; border-color: #B91C1C; padding: 3px 8px; font-size: 0.75rem;" title="Apagar este orientador inventado da lista">
            🗑️ Apagar
          </button>`;
@@ -5396,6 +5940,7 @@ function renderTeachersManagementModal() {
 
         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end;">
           ${badgeHtml}
+          ${cardBtnHtml}
           ${scheduleToggleBtn}
           ${actionBtnHtml}
         </div>
@@ -5458,3 +6003,10 @@ window.renderTarefasList = renderTarefasList;
 window.openHomeworkForAttendance = openHomeworkForAttendance;
 window.renderTeachersManagementModal = renderTeachersManagementModal;
 window.deleteInventedTeacher = deleteInventedTeacher;
+window.switchCardViewType = switchCardViewType;
+window.renderTeacherCard = renderTeacherCard;
+window.viewTeacherCard = viewTeacherCard;
+window.switchHistoryViewType = switchHistoryViewType;
+window.renderTeacherHistoryTable = renderTeacherHistoryTable;
+window.deleteTeacherAttendanceRecord = deleteTeacherAttendanceRecord;
+window.exportTeacherHistoryCSV = exportTeacherHistoryCSV;

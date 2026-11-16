@@ -520,6 +520,43 @@
       justify-content: center;
     }
 
+    /* Estilo Especial para Ponto de Professores & Orientadores */
+    .totem-feedback-popup.is-teacher {
+      border: 3.5px solid #FFD13B !important;
+      box-shadow: 6px 6px 0px #0B2545, 0 0 25px rgba(255, 209, 59, 0.4) !important;
+      background: linear-gradient(180deg, #FFFFFF 0%, #FFFBEB 100%) !important;
+    }
+
+    .totem-feedback-popup.is-teacher .totem-popup-avatar {
+      border-color: #FFD13B !important;
+      background: #FFE600 !important;
+      box-shadow: 0 0 14px rgba(255, 209, 59, 0.45) !important;
+    }
+
+    .totem-popup-badge-teacher-in {
+      background: #FEF3C7 !important;
+      color: #92400E !important;
+      border: 2px solid #D97706 !important;
+      padding: 4px 14px !important;
+      border-radius: 999px !important;
+      font-family: var(--font-heading) !important;
+      font-weight: 800 !important;
+      font-size: 0.88rem !important;
+      margin-bottom: 6px !important;
+    }
+
+    .totem-popup-badge-teacher-out {
+      background: #FEE2E2 !important;
+      color: #991B1B !important;
+      border: 2px solid #DC2626 !important;
+      padding: 4px 14px !important;
+      border-radius: 999px !important;
+      font-family: var(--font-heading) !important;
+      font-weight: 800 !important;
+      font-size: 0.88rem !important;
+      margin-bottom: 6px !important;
+    }
+
     /* Modal de Ativação / Login do Google */
     .totem-auth-overlay {
       position: fixed;
@@ -597,9 +634,9 @@
         </div>
       </div>
 
-      <!-- Digitação Manual por ID -->
+      <!-- Digitação Manual por ID (Aluno KUM-XXXX ou Professor PROF-XXXX) -->
       <form id="formTotemManualId" class="totem-manual-row">
-        <input type="text" id="inputTotemManualId" class="totem-manual-input" placeholder="Digite seu KumonID (ex: 1 ou KUM-0001)" autocomplete="off">
+        <input type="text" id="inputTotemManualId" class="totem-manual-input" placeholder="Digite o ID (ex: 1 ou PROF-0001)" autocomplete="off">
         <button type="submit" class="totem-manual-btn">
           Bater
         </button>
@@ -607,12 +644,15 @@
 
       <!-- Barra de Presenças Rápidas -->
       <div class="totem-live-pills-row">
-        <span class="totem-hint-text">👋 Aproxime a carteirinha</span>
+        <span class="totem-hint-text">👋 Aproxime a carteirinha (Aluno ou Professor)</span>
         <div class="totem-pills-group">
-          <span class="totem-pill-stat" style="background: #EBF8FF; color: #0077B6;">
+          <span class="totem-pill-stat" style="background: #EBF8FF; color: #0077B6;" title="Alunos presentes agora">
             🟢 <strong id="totemLiveCount">0</strong> em sala
           </span>
-          <span class="totem-pill-stat" style="background: #FEF3C7; color: #B45309;">
+          <span class="totem-pill-stat" id="totemTeacherStatPill" style="background: #FEF3C7; color: #92400E; display: none;" title="Professores em turno">
+            👔 <strong id="totemTeacherCount">0</strong> profs
+          </span>
+          <span class="totem-pill-stat" style="background: #F1F5F9; color: #334155;" title="Total de presenças registradas hoje">
             📅 <strong id="totemTodayCount">0</strong> hoje
           </span>
         </div>

@@ -114,6 +114,11 @@
           <button type="button" class="btn-neo btn-outline" id="btnOpenTeachersManagementModal" title="Gerenciar lista de orientadores" style="font-size: 0.82rem; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;">
             <span>👥</span> <span style="font-size: 0.72rem; font-weight: 800;">Professores</span>
           </button>
+
+          <!-- Botão Minha Carteirinha de Professor -->
+          <button type="button" class="btn-neo btn-warning" id="btnHeaderMyTeacherCard" title="Ver minha Carteirinha Digital de Professor(a)" style="background: #0B2545; color: #FFD13B; border-color: #0B2545; font-size: 0.82rem; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;">
+            <span>🪪</span> <span style="font-size: 0.72rem; font-weight: 800;">Minha Carteirinha</span>
+          </button>
           <!-- Botão perfil do Professor (Avatar / Foto) -->
           <button type="button" class="teacher-greeting-pill" id="btnTeacherProfilePill" title="Clique para ver seu perfil de professor(a)">
             <div class="teacher-avatar-mini" id="headerTeacherAvatar">👩‍🏫</div>
@@ -232,81 +237,175 @@
             </div>
           </div>
 
-          <div class="card-preview-layout">
-            
-            <!-- Lado Esquerdo: A Carteirinha em Formato Real -->
-            <div class="kumon-id-card-wrap">
-              <div class="kumon-id-card" id="studentIdCard">
-                <div class="card-top-bar">
-                  <img src="assets/onpoint.png" alt="Kumon Onpoint" class="card-logo-img-main">
-                </div>
-                <div class="card-body-content">
-                  <div class="card-avatar-wrap" id="cardAvatar">👦</div>
-                  <div class="card-student-name" id="cardStudentName">Nome do Aluno</div>
-                  <div class="card-student-id-badge" id="cardStudentId">ID: KUM-0001</div>
-                  
-                  <div class="feedback-subjects" id="cardSubjects">
-                    <span class="subject-badge" style="background:#93C5FD; color:#1E3A8A;">Matemática</span>
+          <!-- Alternador de Visão de Carteirinhas: Alunos vs Professores -->
+          <div class="card-type-toggle-bar">
+            <span style="font-size: 0.82rem; font-weight: 800; color: #0B2545;">Visualizar:</span>
+            <button type="button" class="btn-neo card-type-btn active" id="btnTabCardStudents">
+              👦 Carteirinhas de Alunos
+            </button>
+            <button type="button" class="btn-neo card-type-btn" id="btnTabCardTeachers" style="background: #0B2545; color: #FFD13B; border-color: #0B2545;">
+              ⭐ Carteirinhas de Professores & Orientadores
+            </button>
+          </div>
+
+          <!-- SEÇÃO 1: CARTEIRINHA DE ALUNOS -->
+          <div id="cardStudentsSection">
+            <div class="card-preview-layout">
+              
+              <!-- Lado Esquerdo: A Carteirinha em Formato Real -->
+              <div class="kumon-id-card-wrap">
+                <div class="kumon-id-card" id="studentIdCard">
+                  <div class="card-top-bar">
+                    <img src="assets/onpoint.png" alt="Kumon Onpoint" class="card-logo-img-main">
                   </div>
+                  <div class="card-body-content">
+                    <div class="card-avatar-wrap" id="cardAvatar">👦</div>
+                    <div class="card-student-name" id="cardStudentName">Nome do Aluno</div>
+                    <div class="card-student-id-badge" id="cardStudentId">ID: KUM-0001</div>
+                    
+                    <div class="feedback-subjects" id="cardSubjects">
+                      <span class="subject-badge" style="background:#93C5FD; color:#1E3A8A;">Matemática</span>
+                    </div>
 
-                  <div class="card-qr-box" id="cardQrContainer">
-                    <!-- Gerado via QRCode.js -->
-                  </div>
+                    <div class="card-qr-box" id="cardQrContainer">
+                      <!-- Gerado via QRCode.js -->
+                    </div>
 
-                  <div style="font-size: 0.72rem; color: var(--kumon-gray-muted); font-weight: 700;">
-                    Aproxime este QR Code no Totem
-                  </div>
-                </div>
-
-                <div class="card-footer-strip">
-                  <span id="cardTeacherLabel">ORIENTAÇÃO: UNIDADE KUMON</span>
-                  <span>ANO 2026</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Lado Direito: Seleção do Aluno & Detalhes -->
-            <div style="display: flex; flex-direction: column; gap: 18px;">
-              <div style="background: var(--kumon-soft-bg); border: var(--border-thick); border-radius: var(--radius-md); padding: 18px;">
-                <div class="form-group" style="margin-bottom: 12px;">
-                  <label class="form-label" for="inputCardSearchStudent">🔍 Pesquisar Carteirinha por Nome:</label>
-                  <input type="text" id="inputCardSearchStudent" class="neo-input" placeholder="Digite o nome do aluno para buscar..." style="width: 100%; font-weight: 700;">
-                </div>
-                <label class="form-label" for="selectCardStudent">Ou selecione na lista (ordem alfabética):</label>
-                <select id="selectCardStudent" class="neo-input" style="width: 100%; margin-bottom: 14px;">
-                  <!-- Preenchido via JavaScript -->
-                </select>
-
-                <div class="form-grid-2col" style="margin-top: 10px;">
-                  <div style="background: #fff; padding: 12px; border-radius: var(--radius-sm); border: var(--border-thin);">
-                    <div style="font-size: 0.75rem; color: var(--kumon-gray-muted); font-weight: 700;">FREQUÊNCIA NO MÊS</div>
-                    <div style="font-size: 1.4rem; font-family: var(--font-heading); font-weight: 800; color: var(--kumon-blue-dark);" id="cardStatAttendances">
-                      0 Aulas
+                    <div style="font-size: 0.72rem; color: var(--kumon-gray-muted); font-weight: 700;">
+                      Aproxime este QR Code no Totem
                     </div>
                   </div>
-                  <div style="background: #fff; padding: 12px; border-radius: var(--radius-sm); border: var(--border-thin);">
-                    <div style="font-size: 0.75rem; color: var(--kumon-gray-muted); font-weight: 700;">STATUS ATUAL</div>
-                    <div style="font-size: 1.05rem; font-family: var(--font-heading); font-weight: 800;" id="cardStatStatus">
-                      ⚪ Fora da Sala
+
+                  <div class="card-footer-strip">
+                    <span id="cardTeacherLabel">ORIENTAÇÃO: UNIDADE KUMON</span>
+                    <span>ANO 2026</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Lado Direito: Seleção do Aluno & Detalhes -->
+              <div style="display: flex; flex-direction: column; gap: 18px;">
+                <div style="background: var(--kumon-soft-bg); border: var(--border-thick); border-radius: var(--radius-md); padding: 18px;">
+                  <div class="form-group" style="margin-bottom: 12px;">
+                    <label class="form-label" for="inputCardSearchStudent">🔍 Pesquisar Carteirinha por Nome:</label>
+                    <input type="text" id="inputCardSearchStudent" class="neo-input" placeholder="Digite o nome do aluno para buscar..." style="width: 100%; font-weight: 700;">
+                  </div>
+                  <label class="form-label" for="selectCardStudent">Ou selecione na lista (ordem alfabética):</label>
+                  <select id="selectCardStudent" class="neo-input" style="width: 100%; margin-bottom: 14px;">
+                    <!-- Preenchido via JavaScript -->
+                  </select>
+
+                  <div class="form-grid-2col" style="margin-top: 10px;">
+                    <div style="background: #fff; padding: 12px; border-radius: var(--radius-sm); border: var(--border-thin);">
+                      <div style="font-size: 0.75rem; color: var(--kumon-gray-muted); font-weight: 700;">FREQUÊNCIA NO MÊS</div>
+                      <div style="font-size: 1.4rem; font-family: var(--font-heading); font-weight: 800; color: var(--kumon-blue-dark);" id="cardStatAttendances">
+                        0 Aulas
+                      </div>
                     </div>
+                    <div style="background: #fff; padding: 12px; border-radius: var(--radius-sm); border: var(--border-thin);">
+                      <div style="font-size: 0.75rem; color: var(--kumon-gray-muted); font-weight: 700;">STATUS ATUAL</div>
+                      <div style="font-size: 1.05rem; font-family: var(--font-heading); font-weight: 800;" id="cardStatStatus">
+                        ⚪ Fora da Sala
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="margin-top: 16px; display: flex; gap: 10px;">
+                    <button class="btn-neo btn-success" id="btnSimulateCardCheckIn" style="flex: 1;">
+                      ⏱️ Bater Ponto deste Aluno
+                    </button>
                   </div>
                 </div>
 
-                <div style="margin-top: 16px; display: flex; gap: 10px;">
-                  <button class="btn-neo btn-success" id="btnSimulateCardCheckIn" style="flex: 1;">
-                    ⏱️ Bater Ponto deste Aluno
-                  </button>
+                <div style="background: #FFF7D6; border: var(--border-thick); border-radius: var(--radius-md); padding: 16px;">
+                  <h4 style="font-family: var(--font-heading); margin-bottom: 6px; color: #713F12;">📱 Carteirinha no Celular:</h4>
+                  <p style="font-size: 0.86rem; color: #713F12;">
+                    Os alunos e pais podem salvar esta página no celular. O QR Code fica sempre legível na tela para bater o ponto na recepção com facilidade!
+                  </p>
                 </div>
               </div>
 
-              <div style="background: #FFF7D6; border: var(--border-thick); border-radius: var(--radius-md); padding: 16px;">
-                <h4 style="font-family: var(--font-heading); margin-bottom: 6px; color: #713F12;">📱 Carteirinha no Celular:</h4>
-                <p style="font-size: 0.86rem; color: #713F12;">
-                  Os alunos e pais podem salvar esta página no celular. O QR Code fica sempre legível na tela para bater o ponto na recepção com facilidade!
-                </p>
-              </div>
             </div>
+          </div>
 
+          <!-- SEÇÃO 2: CARTEIRINHA DE PROFESSORES (VIP NAVY & GOLD) -->
+          <div id="cardTeachersSection" style="display: none;">
+            <div class="card-preview-layout">
+              
+              <!-- Lado Esquerdo: A Carteirinha do Professor -->
+              <div class="kumon-id-card-wrap">
+                <div class="kumon-teacher-card" id="teacherIdCard">
+                  <div class="teacher-card-top-bar">
+                    <img src="assets/onpoint.png" alt="Kumon Onpoint" class="teacher-card-logo-img">
+                  </div>
+                  <div class="teacher-card-body">
+                    <div class="teacher-card-avatar-wrap" id="cardTeacherAvatar">👨‍🏫</div>
+                    <div class="teacher-card-name" id="cardTeacherName">Nome do Professor</div>
+                    <div class="teacher-card-role" id="cardTeacherRole">ORIENTADOR(A) PEDAGÓGICO(A)</div>
+                    <div class="teacher-card-id-badge" id="cardTeacherId">ID: PROF-0001</div>
+                    <div class="teacher-card-email" id="cardTeacherEmail">professor@gmail.com</div>
+
+                    <div class="teacher-card-qr-box" id="cardTeacherQrContainer">
+                      <!-- Gerado via QRCode.js -->
+                    </div>
+
+                    <div class="teacher-card-instruction">
+                      Aproxime este QR Code no Totem para registrar ponto
+                    </div>
+                  </div>
+                  <div class="teacher-card-footer-strip">
+                    <span>EQUIPE PEDAGÓGICA</span>
+                    <span>UNIDADE SHOPPING • 2026</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Lado Direito: Seleção do Professor & Detalhes -->
+              <div style="display: flex; flex-direction: column; gap: 18px;">
+                <div style="background: #FFFBEB; border: 3px solid #0B2545; border-radius: var(--radius-md); padding: 18px;">
+                  <div class="form-group" style="margin-bottom: 12px;">
+                    <label class="form-label" for="inputCardSearchTeacher">🔍 Pesquisar Orientador(a):</label>
+                    <input type="text" id="inputCardSearchTeacher" class="neo-input" placeholder="Buscar professor por nome ou ID..." style="width: 100%; font-weight: 700;">
+                  </div>
+                  <label class="form-label" for="selectCardTeacher">Selecione o(a) professor(a):</label>
+                  <select id="selectCardTeacher" class="neo-input" style="width: 100%; margin-bottom: 14px;">
+                    <!-- Preenchido via JavaScript -->
+                  </select>
+
+                  <div class="form-grid-2col" style="margin-top: 10px;">
+                    <div style="background: #fff; padding: 12px; border-radius: var(--radius-sm); border: var(--border-thin);">
+                      <div style="font-size: 0.75rem; color: var(--kumon-gray-muted); font-weight: 700;">HORAS NO MÊS</div>
+                      <div style="font-size: 1.35rem; font-family: var(--font-heading); font-weight: 800; color: #B45309;" id="cardTeacherStatHours">
+                        0h 00m
+                      </div>
+                    </div>
+                    <div style="background: #fff; padding: 12px; border-radius: var(--radius-sm); border: var(--border-thin);">
+                      <div style="font-size: 0.75rem; color: var(--kumon-gray-muted); font-weight: 700;">STATUS ATUAL</div>
+                      <div style="font-size: 1.05rem; font-family: var(--font-heading); font-weight: 800;" id="cardTeacherStatStatus">
+                        ⚪ Fora da Unidade
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-neo btn-primary" id="btnPrintTeacherCard" style="flex: 1; background: #0B2545; color: #FFD13B; border-color: #0B2545;">
+                      🖨️ Imprimir Carteirinha do Professor
+                    </button>
+                    <button class="btn-neo btn-warning" id="btnSimulateTeacherCardCheckIn" style="flex: 1;">
+                      ⏱️ Bater Ponto deste Professor
+                    </button>
+                  </div>
+                </div>
+
+                <div style="background: #F0FDF4; border: var(--border-thick); border-radius: var(--radius-md); padding: 16px;">
+                  <h4 style="font-family: var(--font-heading); margin-bottom: 6px; color: #166534;">⭐ Ponto Integrado no Mesmo Totem:</h4>
+                  <p style="font-size: 0.86rem; color: #166534;">
+                    Os professores podem salvar a carteirinha no celular ou imprimir o crachá. O mesmo leitor de QR Code do Totem registra automaticamente tanto alunos quanto professores, calculando as horas de trabalho da equipe!
+                  </p>
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
       </section>
@@ -543,29 +642,27 @@
         <div class="neo-card">
           <div class="neo-card-header">
             <div>
-              <h2 class="neo-title"><span>📊</span> Histórico de Frequência</h2>
+              <h2 class="neo-title"><span>📊</span> Histórico de Frequência & Ponto</h2>
               <p class="neo-subtitle">Registro completo de entradas, saídas e tempo de permanência</p>
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
               <button type="button" class="btn-neo btn-warning" id="btnOpenDaily2010Report" style="background:#FFE600; color:#0B2545;">📋 Relatório 20:10 (Faltantes/Presentes)</button>
               <button class="btn-neo btn-success" id="btnExportCSV">📥 Exportar CSV (Excel)</button>
-              <button class="btn-neo btn-primary" id="btnPrintReport">🖨️ Imprimir Folha de Frequência</button>
+              <button class="btn-neo btn-primary" id="btnPrintReport">🖨️ Imprimir Folha</button>
             </div>
           </div>
 
-          <!-- Filtros Rápidos -->
-          <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;">
-            <div style="flex: 1; min-width: 200px;">
-              <input type="text" id="filterSearchHistory" class="neo-input" placeholder="🔍 Buscar por nome ou ID..." style="font-size: 0.9rem; padding: 8px 12px;">
-            </div>
-            <select id="filterSubjectHistory" class="neo-input" style="font-size: 0.9rem; padding: 8px 12px; width: auto;">
-              <option value="all">Todas as Matérias</option>
-              <!-- Preenchido dinamicamente com as matérias cadastradas -->
-            </select>
-            
+          <!-- Alternador de Visão de Histórico: Alunos vs Professores -->
+          <div style="display: flex; gap: 10px; margin-bottom: 14px; border-bottom: 2px solid #E2E8F0; padding-bottom: 10px;">
+            <button type="button" class="btn-neo btn-sm active" id="btnHistoryTabStudents">
+              👦 Frequência dos Alunos
+            </button>
+            <button type="button" class="btn-neo btn-sm" id="btnHistoryTabTeachers" style="background: #0B2545; color: #FFE600; border-color: #0B2545;">
+              👨‍🏫 Ponto dos Professores (RH)
+            </button>
           </div>
 
-          <!-- Pílulas de Seleção Rápida de Período -->
+          <!-- Pílulas de Seleção Rápida de Período (Compartilhado) -->
           <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;" id="historyPeriodPills">
             <span style="font-size: 0.82rem; font-weight: 800; color: #0B2545;">Período:</span>
             <button type="button" class="btn-neo btn-sm btn-history-period active" data-period="today">Hoje</button>
@@ -576,26 +673,91 @@
             <button type="button" class="btn-neo btn-sm btn-history-period" data-period="all">Todo o Histórico</button>
           </div>
 
-          <div class="table-responsive">
-            <table class="neo-table">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Aluno</th>
-                  <th>KumonID</th>
-                  <th>Disciplinas</th>
-                  <th>Entrada</th>
-                  <th>Saída</th>
-                  <th>Permanência</th>
-                  <th>Tarefa de Casa</th>
-                  <th>Status</th>
-                  <th style="text-align: right;">Ações</th>
-                </tr>
-              </thead>
-              <tbody id="historyTableBody">
-                <!-- Preenchido via JavaScript -->
-              </tbody>
-            </table>
+          <!-- SEÇÃO 1: HISTÓRICO DE ALUNOS -->
+          <div id="historyStudentsSection">
+            <!-- Filtros Rápidos de Alunos -->
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;">
+              <div style="flex: 1; min-width: 200px;">
+                <input type="text" id="filterSearchHistory" class="neo-input" placeholder="🔍 Buscar por nome ou KumonID..." style="font-size: 0.9rem; padding: 8px 12px;">
+              </div>
+              <select id="filterSubjectHistory" class="neo-input" style="font-size: 0.9rem; padding: 8px 12px; width: auto;">
+                <option value="all">Todas as Matérias</option>
+              </select>
+            </div>
+
+            <div class="table-responsive">
+              <table class="neo-table">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Aluno</th>
+                    <th>KumonID</th>
+                    <th>Disciplinas</th>
+                    <th>Entrada</th>
+                    <th>Saída</th>
+                    <th>Permanência</th>
+                    <th>Tarefa de Casa</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                  <!-- Preenchido via JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SEÇÃO 2: PONTO DOS PROFESSORES (RH) -->
+          <div id="historyTeachersSection" style="display: none;">
+            <!-- Resumo Rápido de Horas do Período -->
+            <div class="form-grid-2col" style="margin-bottom: 16px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+              <div style="background: #FFFBEB; border: 2.5px solid #0B2545; border-radius: var(--radius-sm); padding: 12px;">
+                <div style="font-size: 0.75rem; color: #92400E; font-weight: 800;">TOTAL DE HORAS TRABALHADAS</div>
+                <div style="font-size: 1.5rem; font-family: var(--font-heading); font-weight: 800; color: #B45309;" id="teacherHistoryTotalHours">
+                  0h 00m
+                </div>
+              </div>
+              <div style="background: #F0FDF4; border: 2.5px solid #0B2545; border-radius: var(--radius-sm); padding: 12px;">
+                <div style="font-size: 0.75rem; color: #166534; font-weight: 800;">TURNOS NO PERÍODO</div>
+                <div style="font-size: 1.5rem; font-family: var(--font-heading); font-weight: 800; color: #15803D;" id="teacherHistoryTotalShifts">
+                  0 turnos
+                </div>
+              </div>
+              <div style="background: #EBF8FF; border: 2.5px solid #0B2545; border-radius: var(--radius-sm); padding: 12px;">
+                <div style="font-size: 0.75rem; color: #0077B6; font-weight: 800;">EM TURNO AGORA</div>
+                <div style="font-size: 1.5rem; font-family: var(--font-heading); font-weight: 800; color: #0077B6;" id="teacherHistoryActiveNow">
+                  0 profs
+                </div>
+              </div>
+            </div>
+
+            <!-- Filtro de Busca de Professores -->
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;">
+              <div style="flex: 1; min-width: 200px;">
+                <input type="text" id="filterSearchTeacherHistory" class="neo-input" placeholder="🔍 Buscar por professor ou ID..." style="font-size: 0.9rem; padding: 8px 12px;">
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="neo-table">
+                <thead>
+                  <tr style="background: #0B2545; color: #FFFFFF;">
+                    <th style="color: #FFFFFF;">Data</th>
+                    <th style="color: #FFFFFF;">Professor(a)</th>
+                    <th style="color: #FFFFFF;">ID Professor</th>
+                    <th style="color: #FFFFFF;">Entrada</th>
+                    <th style="color: #FFFFFF;">Saída</th>
+                    <th style="color: #FFFFFF;">Horas Trabalhadas</th>
+                    <th style="color: #FFFFFF;">Status</th>
+                    <th style="color: #FFFFFF; text-align: right;">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="teacherHistoryTableBody">
+                  <!-- Preenchido via JavaScript -->
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>

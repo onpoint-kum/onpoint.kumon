@@ -1,7 +1,9 @@
 // totem.js - Lógica Dedicada do Totem Kiosk do Kumon Onpoint
 const TotemState = {
   students: [],
+  teachers: [],
   attendances: [],
+  teacherAttendances: [],
   html5QrCode: null,
   isCameraActive: false,
   isProcessingScan: false,
@@ -83,6 +85,14 @@ function initTotemAuth() {
   });
 }
 
+function isDevAccount(nameOrEmail) {
+  if (!nameOrEmail) return false;
+  const str = String(nameOrEmail).toLowerCase().trim();
+  if (str === 'kotundashed.kiomi@gmail.com') return true;
+  if (str === 'dev joão' || str === 'dev joao' || str.startsWith('dev ')) return true;
+  return false;
+}
+
 function initTotemFirestoreListeners() {
   if (!KumonFirebase.db) return;
 
@@ -93,7 +103,7 @@ function initTotemFirestoreListeners() {
       TotemState.students.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
     }, err => console.error('Erro ao ouvir alunos no Totem:', err));
 
-  // 2. Frequência / Presença de hoje
+  // 2. Frequência / Presença dos alunos hoje
   const todayStr = getTodayDateStr();
   KumonFirebase.db.collection('kumon_attendance')
     .where('date', '==', todayStr)
@@ -101,15 +111,48 @@ function initTotemFirestoreListeners() {
       TotemState.attendances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       updateTotemCounters();
     }, err => console.error('Erro ao ouvir presenças no Totem:', err));
+
+  // 3. Professores Oficiais cadastrados (kumon_teachers)
+  KumonFirebase.db.collection('kumon_teachers')
+    .onSnapshot((snapshot) => {
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(t => t.isRegistered && !isDevAccount(t.email) && !isDevAccount(t.nickname));
+
+      // Garante teacherId no formato PROF-XXXX
+      let nextId = 1;
+      list.forEach((t) => {
+        if (!t.teacherId) {
+          t.teacherId = `PROF-${String(nextId).padStart(4, '0')}`;
+        }
+        nextId++;
+      });
+      TotemState.teachers = list;
+    }, err => console.error('Erro ao ouvir professores no Totem:', err));
+
+  // 4. Ponto dos Professores hoje (kumon_teacher_attendance)
+  KumonFirebase.db.collection('kumon_teacher_attendance')
+    .where('date', '==', todayStr)
+    .onSnapshot((snapshot) => {
+      TotemState.teacherAttendances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      updateTotemCounters();
+    }, err => console.error('Erro ao ouvir ponto de professores no Totem:', err));
 }
 
 function updateTotemCounters() {
   const inRoom = TotemState.attendances.filter(a => a.status === 'in');
+  const teachersInRoom = (TotemState.teacherAttendances || []).filter(a => a.status === 'in');
+
   const liveCountEl = document.getElementById('totemLiveCount');
   const todayCountEl = document.getElementById('totemTodayCount');
+  const teacherCountEl = document.getElementById('totemTeacherCount');
+  const teacherStatPill = document.getElementById('totemTeacherStatPill');
 
   if (liveCountEl) liveCountEl.textContent = inRoom.length;
   if (todayCountEl) todayCountEl.textContent = TotemState.attendances.length;
+  if (teacherCountEl) teacherCountEl.textContent = teachersInRoom.length;
+  if (teacherStatPill) {
+    teacherStatPill.style.display = teachersInRoom.length > 0 ? 'inline-flex' : 'none';
+  }
 }
 
 let isSwitchingTotemCamera = false;
@@ -260,7 +303,7 @@ async function switchTotemCamera() {
   }
 }
 
-// Digitação manual por KumonID
+// Digitação manual por ID (Aluno KUM-XXXX ou Professor PROF-XXXX)
 function initTotemManualInput() {
   const form = document.getElementById('formTotemManualId');
   const input = document.getElementById('inputTotemManualId');
@@ -270,8 +313,15 @@ function initTotemManualInput() {
     let val = (input?.value || '').trim();
     if (!val) return;
 
-    // Se o usuário digitou apenas números (ex: "1" ou "3"), auto-formata para "KUM-0001"
-    if (/^\d+$/.test(val)) {
+    // Se o usuário digitou prefixos de professor (ex: p1, prof-1, prof1)
+    if (/^[pP](\d+)$/.test(val)) {
+      const num = val.replace(/^[pP]/, '');
+      val = `PROF-${num.padStart(4, '0')}`;
+    } else if (/^[pP][rR][oO][fF]-?(\d+)$/.test(val)) {
+      const match = val.match(/^[pP][rR][oO][fF]-?(\d+)$/);
+      val = `PROF-${match[1].padStart(4, '0')}`;
+    } else if (/^\d+$/.test(val)) {
+      // Se digitou apenas números (ex: "1" ou "3"), auto-formata para "KUM-0001" (aluno)
       val = `KUM-${val.padStart(4, '0')}`;
     }
 
@@ -280,7 +330,7 @@ function initTotemManualInput() {
   });
 }
 
-// Processa o ponto no Totem (Check-in / Check-out com feedback imediato)
+// Processa o ponto no Totem (Check-in / Check-out tanto para Alunos quanto para Professores)
 async function handleTotemScan(scannedId, source = 'manual') {
   if (!scannedId) return;
   const cleanId = scannedId.trim().toUpperCase();
@@ -307,17 +357,81 @@ async function handleTotemScan(scannedId, source = 'manual') {
     }, ms);
   };
 
-  // Encontra o aluno
+  const todayStr = getTodayDateStr();
+  const timeStr = getCurrentTimeStr();
+
+  // 1. VERIFICAÇÃO DE PROFESSOR / ORIENTADOR
+  const teacher = (TotemState.teachers || []).find(t => 
+    (t.teacherId && t.teacherId.toUpperCase() === cleanId) ||
+    (t.email && t.email.toUpperCase() === cleanId) ||
+    (t.id && t.id.toUpperCase() === cleanId)
+  );
+
+  if (teacher) {
+    const openTeacherRecord = (TotemState.teacherAttendances || []).find(a => 
+      (a.teacherId === teacher.teacherId || (teacher.email && a.email === teacher.email)) && 
+      a.date === todayStr && 
+      a.status === 'in'
+    );
+
+    if (openTeacherRecord) {
+      // --- SAÍDA DO PROFESSOR ---
+      const diffSec = calcDurationSec(openTeacherRecord.checkInTime, timeStr);
+      if (diffSec < 20) {
+        unlockTotemAfterDelay(1500);
+        return;
+      }
+
+      const durationMin = calcDurationMin(openTeacherRecord.checkInTime, timeStr);
+
+      if (KumonFirebase.db && openTeacherRecord.id) {
+        await KumonFirebase.db.collection('kumon_teacher_attendance').doc(openTeacherRecord.id).update({
+          checkOutTime: timeStr,
+          durationMinutes: durationMin,
+          status: 'out',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+
+      if (window.kumonAudio) window.kumonAudio.playCheckOut();
+      showTotemTeacherSuccess(teacher, 'out', openTeacherRecord.checkInTime, timeStr, durationMin);
+      unlockTotemAfterDelay(3500);
+      return;
+    } else {
+      // --- ENTRADA DO PROFESSOR ---
+      const newTeacherRecord = {
+        teacherId: teacher.teacherId,
+        teacherName: teacher.nickname || teacher.fullName || 'Orientador(a)',
+        fullName: teacher.fullName || teacher.nickname || 'Orientador(a)',
+        email: teacher.email || '',
+        photo: teacher.photoBase64 || '',
+        date: todayStr,
+        checkInTime: timeStr,
+        checkOutTime: null,
+        durationMinutes: null,
+        status: 'in',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      if (KumonFirebase.db) {
+        await KumonFirebase.db.collection('kumon_teacher_attendance').add(newTeacherRecord);
+      }
+
+      if (window.kumonAudio) window.kumonAudio.playCheckIn();
+      showTotemTeacherSuccess(teacher, 'in', timeStr, null, null);
+      unlockTotemAfterDelay(3500);
+      return;
+    }
+  }
+
+  // 2. VERIFICAÇÃO DE ALUNO
   const student = TotemState.students.find(s => s.kumonId.toUpperCase() === cleanId);
   if (!student) {
     if (window.kumonAudio) window.kumonAudio.playAlert();
-    showTotemError(`KumonID "${cleanId}" não encontrado.`);
+    showTotemError(`Código "${cleanId}" não cadastrado (Aluno ou Professor).`);
     unlockTotemAfterDelay(3000);
     return;
   }
-
-  const todayStr = getTodayDateStr();
-  const timeStr = getCurrentTimeStr();
 
   // Verifica se o aluno já tem registro em aberto hoje
   const openRecord = TotemState.attendances.find(a => 
@@ -327,10 +441,9 @@ async function handleTotemScan(scannedId, source = 'manual') {
   );
 
   if (openRecord) {
-    // --- REGISTRAR SAÍDA ---
+    // --- REGISTRAR SAÍDA DO ALUNO ---
     const diffSec = calcDurationSec(openRecord.checkInTime, timeStr);
     if (diffSec < 20) {
-      // Evita saída instantânea acidental logo após a entrada
       unlockTotemAfterDelay(1500);
       return;
     }
@@ -351,7 +464,7 @@ async function handleTotemScan(scannedId, source = 'manual') {
     unlockTotemAfterDelay(3500);
 
   } else {
-    // --- REGISTRAR ENTRADA ---
+    // --- REGISTRAR ENTRADA DO ALUNO ---
     const newRecord = {
       kumonId: student.kumonId,
       studentName: student.name,
@@ -377,9 +490,11 @@ async function handleTotemScan(scannedId, source = 'manual') {
   }
 }
 
-// Modal de feedback de sucesso (Check-in / Check-out)
+// Modal de feedback de sucesso para ALUNOS
 function showTotemSuccess(student, type, checkInTime, checkOutTime, durationMinutes) {
   const overlay = document.getElementById('totemFeedbackOverlay');
+  overlay?.querySelector('.totem-feedback-popup')?.classList.remove('is-teacher');
+
   const avatarEl = document.getElementById('totemSuccessAvatar');
   const badgeEl = document.getElementById('totemSuccessBadge');
   const nameEl = document.getElementById('totemSuccessName');
@@ -429,6 +544,57 @@ function showTotemSuccess(student, type, checkInTime, checkOutTime, durationMinu
   overlay?.classList.add('active');
 }
 
+// Modal de feedback de sucesso EXCLUSIVO para PROFESSORES / ORIENTADORES
+function showTotemTeacherSuccess(teacher, type, checkInTime, checkOutTime, durationMinutes) {
+  const overlay = document.getElementById('totemFeedbackOverlay');
+  overlay?.querySelector('.totem-feedback-popup')?.classList.add('is-teacher');
+
+  const avatarEl = document.getElementById('totemSuccessAvatar');
+  const badgeEl = document.getElementById('totemSuccessBadge');
+  const nameEl = document.getElementById('totemSuccessName');
+  const idEl = document.getElementById('totemSuccessId');
+  const detailEl = document.getElementById('totemSuccessDetail');
+  const subjectsEl = document.getElementById('totemSuccessSubjects');
+
+  if (avatarEl) {
+    if (teacher.photoBase64) {
+      avatarEl.innerHTML = `<img src="${teacher.photoBase64}" alt="${teacher.nickname || teacher.fullName}" style="width: 76px; height: 76px; border-radius: 50%; object-fit: cover; border: 3px solid #FFD13B; box-shadow: 0 0 12px rgba(255, 209, 59, 0.45);">`;
+    } else {
+      avatarEl.textContent = teacher.gender === 'Masculino' ? '👨‍🏫' : '👩‍🏫';
+    }
+  }
+
+  const teacherName = teacher.nickname || teacher.fullName || 'Professor(a)';
+  if (nameEl) nameEl.innerHTML = `${teacherName} <span style="font-size: 0.88rem; color: #D97706; vertical-align: middle;">⭐</span>`;
+  if (idEl) idEl.textContent = `ID: ${teacher.teacherId} • Equipe Pedagógica`;
+
+  if (type === 'in') {
+    if (badgeEl) {
+      badgeEl.className = 'totem-popup-badge-teacher-in';
+      badgeEl.textContent = '⭐ PONTO DO ORIENTADOR • ENTRADA';
+    }
+    if (detailEl) detailEl.innerHTML = `👋 Bom trabalho na unidade hoje!<br>Horário de Entrada: <strong>${checkInTime}</strong>`;
+  } else {
+    if (badgeEl) {
+      badgeEl.className = 'totem-popup-badge-teacher-out';
+      badgeEl.textContent = '⭐ PONTO DO ORIENTADOR • SAÍDA';
+    }
+    const h = Math.floor(durationMinutes / 60);
+    const m = durationMinutes % 60;
+    const durStr = h > 0 ? `${h}h ${m}m trabalhadas` : `${m} min trabalhados`;
+    if (detailEl) detailEl.innerHTML = `👏 Excelente descanso! Até a próxima aula.<br>Entrada: <strong>${checkInTime}</strong> • Saída: <strong>${checkOutTime}</strong> (${durStr})`;
+  }
+
+  if (subjectsEl) {
+    subjectsEl.innerHTML = `
+      <span style="display:inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 800; font-size: 0.75rem; background: #FEF3C7; color: #92400E; border: 1.5px solid #D97706;">⭐ Orientador Oficial Google</span>
+      <span style="display:inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 800; font-size: 0.75rem; background: #0B2545; color: #FFD13B; border: 1.5px solid #FFD13B;">🎓 Ponto Registrado</span>
+    `;
+  }
+
+  overlay?.classList.add('active');
+}
+
 // Modal de erro
 function showTotemError(msg) {
   const overlay = document.getElementById('totemErrorOverlay');
@@ -439,7 +605,9 @@ function showTotemError(msg) {
 
 // Reseta e esconde os modais de feedback
 function resetTotemFeedbackToIdle() {
-  document.getElementById('totemFeedbackOverlay')?.classList.remove('active');
+  const overlay = document.getElementById('totemFeedbackOverlay');
+  overlay?.classList.remove('active');
+  overlay?.querySelector('.totem-feedback-popup')?.classList.remove('is-teacher');
   document.getElementById('totemErrorOverlay')?.classList.remove('active');
 }
 
